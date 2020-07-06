@@ -45,7 +45,6 @@ class wxBaseViewer(wx.Panel):
         self.Bind(wx.EVT_MIDDLE_UP, self.OnMiddleUp)
         self.Bind(wx.EVT_MOTION, self.OnMotion)
         self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
-        self.Bind(wx.EVT_KEY_UP, self.OnKeyUp)
         self.Bind(wx.EVT_MOUSEWHEEL, self.OnWheelScroll)
 
         self._display = None
@@ -174,15 +173,7 @@ class wxViewer3d(wxBaseViewer):
         try:
             self._key_map[code]()
         except KeyError:
-            print('Unrecognized key pressed %i' % evt.GetKeyCode())
-
-    def OnKeyUp(self, evt):
-        code = evt.GetKeyCode()
-        print('Key released')
-        try:
-            self._key_map[code]()
-        except KeyError:
-            print('Unrecognized key released %i' % evt.GetKeyCode())
+            print('Unrecognized key pressed %i' % code)
 
     def OnMaximize(self, event):
         if self._inited:
