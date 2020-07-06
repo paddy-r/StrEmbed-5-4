@@ -17,24 +17,33 @@
 
 from __future__ import print_function
 
+import ctypes
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(True)
+except:
+    pass
+
 import random
 import os
 import os.path
 import sys
+import threading
 
 from OCC.Core.Quantity import Quantity_Color, Quantity_TOC_RGB
 from OCC.Display.SimpleGui import init_display
 
 from OCC.Extend.TopologyUtils import TopologyExplorer
-from OCC.Extend.DataExchange import read_step_file
+from OCC.Extend.DataExchange import read_step_file as readstep
 
-def import_as_one_shape(event=None):
-    shp = read_step_file(os.path.join('..', 'assets', 'models', 'as1_pe_203.stp'))
+def import_as_one_shape(event = None):
+    # shp = read_step_file(os.path.join('..', 'assets', 'models', 'as1_pe_203.stp'))
+    shp = readstep(os.path.join('Torch Assembly.STEP'))
     display.EraseAll()
-    display.DisplayShape(shp, update=True)
+    display.DisplayShape(shp, update = True)
 
-def import_as_multiple_shapes(event=None):
-    compound = read_step_file(os.path.join('..', 'assets', 'models', 'as1_pe_203.stp'))
+def import_as_multiple_shapes(event = None):
+    # compound = read_step_file(os.path.join('..', 'assets', 'models', 'as1_pe_203.stp'))
+    compound = readstep(os.path.join('Torch Assembly.STEP'))
     t = TopologyExplorer(compound)
     display.EraseAll()
     for solid in t.solids():
@@ -43,15 +52,28 @@ def import_as_multiple_shapes(event=None):
                                random.random(),
                                Quantity_TOC_RGB)
         display.DisplayColoredShape(solid, color)
+
     display.FitAll()
 
-def exit(event=None):
+def save_to_image(event = None):
+    print('Saving image to file')
+    display.ExportToImage('image.png')
+
+
+def exit(event = None):
     sys.exit()
 
 
 if __name__ == '__main__':
-    display, start_display, add_menu, add_function_to_menu = init_display()
+    display, start_display, add_menu, add_function_to_menu = init_display('wx')
     add_menu('STEP import')
     add_function_to_menu('STEP import', import_as_one_shape)
     add_function_to_menu('STEP import', import_as_multiple_shapes)
+    add_function_to_menu('STEP import', save_to_image)
+    # add_function_to_menu('STEP import', exit)
+    
+    display.View_Iso()
     start_display()
+    
+    # t1 = threading.Thread(target = start_display)
+    # t1.start()
