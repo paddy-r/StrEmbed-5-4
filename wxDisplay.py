@@ -152,26 +152,21 @@ class wxViewer3d(wxBaseViewer):
         def set_shade_mode():
             self._display.DisableAntiAliasing()
             self._display.SetModeShaded()
-            
+
         self._key_map = {ord('W'): self._display.SetModeWireFrame,
                          ord('S'): set_shade_mode,
                          ord('A'): self._display.EnableAntiAliasing,
                          ord('B'): self._display.DisableAntiAliasing,
                          ord('H'): self._display.SetModeHLR,
                          ord('G'): self._display.SetSelectionModeVertex,
-                         306: self._shift_down
+                         306: lambda: print('Shift pressed')
                         }
-
-    def _shift_down(self, evt = None):
-        print('Shift pressed')
-        if evt:
-            evt.Skip()
 
     def OnKeyDown(self, evt):
         code = evt.GetKeyCode()
-        print('Key pressed: ', code)
         try:
             self._key_map[code]()
+            print('Key pressed: %i' % code)
         except KeyError:
             print('Unrecognized key pressed %i' % code)
 
