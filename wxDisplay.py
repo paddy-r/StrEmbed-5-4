@@ -27,6 +27,16 @@ except ImportError:
     raise ImportError('Please install wxPython.')
 from OCC.Display import OCCViewer
 
+'''HR exercise 9/7/20
+Some extra imports'''
+from OCC.Core.Quantity import Quantity_Color, Quantity_TOC_RGB
+from OCC.Core.BRepPrimAPI import BRepPrimAPI_MakeBox
+from OCC.Core.AIS import AIS_Shape
+from OCC.Extend.TopologyUtils import TopologyExplorer
+from OCC.Extend.DataExchange import read_step_file, read_step_file_with_names_colors
+import random
+import os
+'''Extra imports end'''
 
 class wxBaseViewer(wx.Panel):
     def __init__(self, parent=None):
@@ -307,16 +317,67 @@ def TestWxDisplay():
             self.canva = wxViewer3d(self)
 
         def runTests(self):
-            self.canva._display.Test()
+            # self.canva._display.Test()
+
+            '''HR exercise 9/7/20
+            Want to convert line above with new code that is self-contained here
+            C++ code to replicate (from 'Display3d.cpp') is below:
+
+            BRepPrimAPI_MakeBox S(100,50,40);
+            Handle(AIS_Shape) anAISShape = new AIS_Shape(S.Shape());
+            myAISContext->Display(anAISShape, Standard_False);
+            myV3dView->ZFitAll();
+            myV3dView->FitAll();
+            '''
+            # S = BRepPrimAPI_MakeBox(100,100,100)
+            # S_shape = AIS_Shape(S.Shape())
+            # self.canva._display.DisplayShape(S_shape, update=True)
+
+            display = self.canva._display
+            filename = 'Torch Assembly.STEP'
+
+            # ##
+            # ##
+            # # From "core_load_step_ap203"
+            # color = Quantity_Color(random.random(),
+            #                    random.random(),
+            #                    random.random(),
+            #                    Quantity_TOC_RGB)
+
+            # # compound = read_step_file(os.path.join('..', 'assets', 'models', 'as1_pe_203.stp'))
+            # compound = read_step_file(filename)
+            # t = TopologyExplorer(compound)
+            # display.EraseAll()
+            # for solid in t.solids():
+            #     color = Quantity_Color(random.random(),
+            #                    random.random(),
+            #                    random.random(),
+            #                    Quantity_TOC_RGB)
+            #     display.DisplayColoredShape(solid, color)
+
+            ##
+            ##
+            # From "core_load_step_with_names_colors"
+            shapes_labels_colors = read_step_file_with_names_colors(filename)
+
+            for shpt_lbl_color in shapes_labels_colors:
+                label, c = shapes_labels_colors[shpt_lbl_color]
+                display.DisplayColoredShape(shpt_lbl_color, color=Quantity_Color(c.Red(),
+                	                                                             c.Green(),
+                	                                                             c.Blue(),
+    	                                                             Quantity_TOC_RGB))
+
+            display.View.FitAll()
+            display.View.ZFitAll()
 
     app = wx.App(False)
-    wx.InitAllImageHandlers()
+    # wx.InitAllImageHandlers()
     frame = AppFrame(None)
     frame.Show(True)
-    wx.SafeYield()
+    # wx.SafeYield()
     frame.canva.InitDriver()
     frame.runTests()
-    app.SetTopWindow(frame)
+    # app.SetTopWindow(frame)
     app.MainLoop()
 
 if __name__ == "__main__":

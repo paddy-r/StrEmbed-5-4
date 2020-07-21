@@ -37,9 +37,10 @@
 import wx
 # WX customtreectrl for parts list
 import wx.lib.agw.customtreectrl as ctc
+
 # Allows inspection of app elements via Ctrl + Alt + I
 # Use InspectableApp() in MainLoop()
-import wx.lib.mixins.inspection as wit
+# import wx.lib.mixins.inspection as wit
 # For scrolled panel
 import wx.lib.scrolledpanel as scr
 
@@ -72,17 +73,25 @@ import numpy as np
 # from scipy.special import comb
 
 
+# For 3D CAD viewer based on python-occ
+from OCC.Display import OCCViewer
+import wxDisplay
+from OCC.Core.Quantity import (Quantity_Color, Quantity_NOC_WHITE, Quantity_TOC_RGB)
+
+# from OCC.Extend.DataExchange import read_step_file_with_names_colors
+
+
 
 class MyTree(ctc.CustomTreeCtrl):
-    
+
     def __init__(self, parent, style):
         ctc.CustomTreeCtrl.__init__(self, parent = parent, agwStyle = style)
         self.parent = parent
         self.reverse_sort = False
         self.alphabetical = True
-        
 
-        
+
+
     # Overridden method to allow sorting based on data other than text
     # Can be sorted alphabetically or numerically, and in reverse
     # ---
@@ -100,26 +109,27 @@ class MyTree(ctc.CustomTreeCtrl):
             t2 = self.GetPyData(item2)['sort_id']
             # print('item 1 PyData = ', t1)
             # print('item 2 PyData = ', t2)
-        
+
         if self.reverse_sort:
             reverse = -1
         else:
             reverse = 1
-            
+
         if t1 < t2: return -1*reverse
         if t1 == t2: return 0
         return 1*reverse
-    
-    
-    
+
+
+
     def GetAncestors(self, item):
-        
+
         # Get all children of CTC item recursively
         # ---
         # MUST create shallow copy of children here to avoid strange behaviour
         # According to ctc docs, "It is advised not to change this list
         # [i.e. returned list] and to make a copy before calling
         # other tree methods as they could change the contents of the list."
+        # See: https://wxpython.org/Phoenix/docs/html/wx.lib.agw.customtreectrl.GenericTreeItem.html
         ancestors = item.GetChildren().copy()
         # They mess you up, your mum and dad
         parents = ancestors
@@ -135,7 +145,7 @@ class MyTree(ctc.CustomTreeCtrl):
         return ancestors
 
 
-    
+
     def SortAllChildren(self, item):
 
         # Get all non-leaf nodes of parent CTC object (always should be MainWindow)
@@ -148,21 +158,62 @@ class MyTree(ctc.CustomTreeCtrl):
 
 
 
+class ShapeRenderer(OCCViewer.Viewer3d):
+    # HR 17/7/20
+    # Adapted/simplified from OffScreenRenderer in OCCViewer in OCC.Display
+    # Dumps render of shape to jpeg file
+    """ The offscreen renderer is inherited from Viewer3d.
+    The DisplayShape method is overriden to export to image
+    each time it is called.
+    """
+    def __init__(self, screen_size=(1000,1000)):
+        OCCViewer.Viewer3d.__init__(self, None)
+        # create the renderer
+        self.Create()
+        self.View.SetBackgroundColor(Quantity_Color(Quantity_NOC_WHITE))
+        self.SetSize(screen_size[0], screen_size[1])
+        self.DisableAntiAliasing()
+        self.SetModeShaded()
+        # self.set_bg_gradient_color([206, 215, 222], [128, 128, 128])
+        # self.display_triedron()
+        # self.capture_number = 0
+
+        self._rendered = False
+
+    def DisplayShape(self, shapes, material = None, texture = None, color = None, transparency = None, update = True, image_full_name = None):
+
+        self.EraseAll()
+        super().DisplayShape(shapes, material, texture,
+                                                        color, transparency, update)
+        print('Dumping rendered image to file...')
+        if not image_full_name:
+            image_full_name = "testimage.jpeg"
+        print('Full file name in "DisplayShape": ', image_full_name)
+        self.View.Dump(image_full_name)
+        if not self._rendered:
+            self.EraseAll()
+            self.View.Dump(image_full_name)
+            self._rendered = True
+        return True
+
+
+
 class MainWindow(wx.Frame):
 
     # Constructor
     def __init__(self):
-        
+
         ### CREATE OBJECT FOR ASSEMBLY MANAGEMENT
         # self.a = []
 
-        
-        
+
+
         wx.Frame.__init__(self, parent = None, title = "StrEmbed-5-4")
         self.SetBackgroundColour('white')
-                
-        
-        
+        self.im_folder = 'Images'
+
+
+
         ### MENU BAR
         menuBar  = wx.MenuBar()
 
@@ -207,38 +258,38 @@ class MainWindow(wx.Frame):
         self.SetToolBar(self.tb)
         self.tb.SetToolBitmapSize((40,40))
         self.tb.SetBackgroundColour('white')
-        
+
         # File tools
-        self.fileOpenTool  = self.tb.AddTool(wx.ID_ANY, 'Open',  wx.Bitmap("Images/fileopen.bmp"),  bmpDisabled = wx.NullBitmap,
+        self.fileOpenTool  = self.tb.AddTool(wx.ID_ANY, 'Open',  wx.Bitmap(os.path.join(self.im_folder, "fileopen.bmp")),  bmpDisabled = wx.NullBitmap,
                                    shortHelp = 'File open',  longHelp = 'File open')
-        self.exitTool      = self.tb.AddTool(wx.ID_ANY, 'Exit', wx.Bitmap("Images/fileclose.bmp"), bmpDisabled = wx.NullBitmap,
+        self.exitTool      = self.tb.AddTool(wx.ID_ANY, 'Exit', wx.Bitmap(os.path.join(self.im_folder, "fileclose.bmp")), bmpDisabled = wx.NullBitmap,
                                    shortHelp = 'Exit', longHelp = 'Exit')
         self.tb.AddSeparator()
-        
+
         # Assembly tools
-        self.assembleTool = self.tb.AddTool(wx.ID_ANY, 'Assemble', wx.Bitmap("Images/assemble.bmp"), bmpDisabled = wx.NullBitmap,
+        self.assembleTool = self.tb.AddTool(wx.ID_ANY, 'Assemble', wx.Bitmap(os.path.join(self.im_folder, "assemble.bmp")), bmpDisabled = wx.NullBitmap,
                                  shortHelp = 'Assemble',   longHelp = 'Form assembly from selected parts')
-        self.flattenTool = self.tb.AddTool(wx.ID_ANY, 'Flatten', wx.Bitmap("Images/flatten.bmp"), bmpDisabled = wx.NullBitmap,
+        self.flattenTool = self.tb.AddTool(wx.ID_ANY, 'Flatten', wx.Bitmap(os.path.join(self.im_folder, "flatten.bmp")), bmpDisabled = wx.NullBitmap,
                                  shortHelp = 'Flatten', longHelp = 'Flatten selected assembly')
-        self.disaggregateTool = self.tb.AddTool(wx.ID_ANY, 'Disaggregate', wx.Bitmap("Images/disaggregate.bmp"), bmpDisabled = wx.NullBitmap,
+        self.disaggregateTool = self.tb.AddTool(wx.ID_ANY, 'Disaggregate', wx.Bitmap(os.path.join(self.im_folder, "disaggregate.bmp")), bmpDisabled = wx.NullBitmap,
                                  shortHelp = 'Disaggregate', longHelp = 'Disaggregate selected assembly')
-        self.aggregateTool = self.tb.AddTool(wx.ID_ANY, 'Aggregate', wx.Bitmap("Images/aggregate.bmp"), bmpDisabled = wx.NullBitmap,
+        self.aggregateTool = self.tb.AddTool(wx.ID_ANY, 'Aggregate', wx.Bitmap(os.path.join(self.im_folder, "aggregate.bmp")), bmpDisabled = wx.NullBitmap,
                                  shortHelp = 'Aggregate', longHelp = 'Aggregate selected assembly')
-        self.addNodeTool = self.tb.AddTool(wx.ID_ANY, 'Add node', wx.Bitmap("Images/add_node.bmp"), bmpDisabled = wx.NullBitmap,
+        self.addNodeTool = self.tb.AddTool(wx.ID_ANY, 'Add node', wx.Bitmap(os.path.join(self.im_folder, "add_node.bmp")), bmpDisabled = wx.NullBitmap,
                                  shortHelp = 'Add node', longHelp = 'Add node to selected assembly')
-        self.removeNodeTool = self.tb.AddTool(wx.ID_ANY, 'Remove node', wx.Bitmap("Images/remove_node.bmp"), bmpDisabled = wx.NullBitmap,
+        self.removeNodeTool = self.tb.AddTool(wx.ID_ANY, 'Remove node', wx.Bitmap(os.path.join(self.im_folder, "remove_node.bmp")), bmpDisabled = wx.NullBitmap,
                                  shortHelp = 'Remove node', longHelp = 'Remove selected node')
-        self.sortTool = self.tb.AddTool(wx.ID_ANY, 'Toggle sort type', wx.Bitmap("Images/sort_mode.bmp"), bmpDisabled = wx.NullBitmap,
+        self.sortTool = self.tb.AddTool(wx.ID_ANY, 'Toggle sort type', wx.Bitmap(os.path.join(self.im_folder, "sort_mode.bmp")), bmpDisabled = wx.NullBitmap,
                                  shortHelp = 'Toggle sort type', longHelp = 'Toggle sort type (alphabetical/by unique item ID)')
-        self.sortReverseTool = self.tb.AddTool(wx.ID_ANY, 'Reverse sort order', wx.Bitmap("Images/sort_reverse.bmp"), bmpDisabled = wx.NullBitmap,
+        self.sortReverseTool = self.tb.AddTool(wx.ID_ANY, 'Reverse sort order', wx.Bitmap(os.path.join(self.im_folder, "sort_reverse.bmp")), bmpDisabled = wx.NullBitmap,
                                  shortHelp = 'Reverse sort order', longHelp = 'Reverse sort order: sort all if no items selected')
-        
+
         self.tb.AddSeparator()
 
         text = 'Reconcile assemblies'
-        self.reconcileTool = self.tb.AddTool(wx.ID_ANY, text, wx.Bitmap('Images/tree_small.bmp'), bmpDisabled = wx.NullBitmap,
+        self.reconcileTool = self.tb.AddTool(wx.ID_ANY, text, wx.Bitmap(os.path.join(self.im_folder, 'tree_small.bmp')), bmpDisabled = wx.NullBitmap,
                                   shortHelp = text, longHelp = text)
-        
+
         self.tb.Realize()
 
 
@@ -246,19 +297,19 @@ class MainWindow(wx.Frame):
         # Bind toolbar tools to actions
         self.Bind(wx.EVT_TOOL, self.OnFileOpen, self.fileOpenTool)
         self.Bind(wx.EVT_TOOL, self.OnExit,     self.exitTool)
-        
+
         self.Bind(wx.EVT_TOOL, self.OnAssemble, self.assembleTool)
         self.Bind(wx.EVT_TOOL, self.OnFlatten, self.flattenTool)
         self.Bind(wx.EVT_TOOL, self.OnDisaggregate, self.disaggregateTool)
         self.Bind(wx.EVT_TOOL, self.OnAggregate, self.aggregateTool)
         self.Bind(wx.EVT_TOOL, self.OnAddNode, self.addNodeTool)
         self.Bind(wx.EVT_TOOL, self.OnRemoveNode, self.removeNodeTool)
-        
+
         self.Bind(wx.EVT_TOOL, self.OnSortTool, self.sortTool)
         self.Bind(wx.EVT_TOOL, self.OnSortReverseTool, self.sortReverseTool)
-        
+
         self.Bind(wx.EVT_TOOL, self.OnReconcileTool, self.reconcileTool)
-       
+
 
 
         ### STATUS BAR
@@ -285,26 +336,43 @@ class MainWindow(wx.Frame):
 
         # Create FlexGridSizer to have 3 panes
         # 2nd and 3rd arguments are hgap and vgap b/t panes (cosmetic)
-        self.grid = wx.FlexGridSizer(cols = 3, rows = 2, hgap = 10, vgap = 10)
+        self.grid = wx.FlexGridSizer(cols = 2, rows = 4, hgap = 10, vgap = 10)
 
         self.part_header = wx.StaticText(self.panel, label = "Parts view")
         self.geom_header = wx.StaticText(self.panel, label = "Geometry view")
         self.latt_header = wx.StaticText(self.panel, label = "Lattice view")
+        self.occ_header  = wx.StaticText(self.panel, label = "3D view")
 
-        self.panel_style = wx.SIMPLE_BORDER
+        self.panel_style = wx.BORDER_SIMPLE
         self.part_panel = wx.Panel(self.panel, style = self.panel_style)
         self.geom_panel = scr.ScrolledPanel(self.panel, style = self.panel_style)
         self.geom_panel.SetupScrolling()
         self.latt_panel = wx.Panel(self.panel, style = self.panel_style)
 
+        # Create 3D viewer panel and manually set panel style (and bg colour)
+        # to avoid tracking back through parent classes
+        self.occ_panel = wxDisplay.wxViewer3d(self.panel)
+        self.occ_panel.SetWindowStyle(self.panel_style)
+        self.occ_panel.InitDriver()
+        self.occ_panel._display.View.SetBackgroundColor(Quantity_Color(Quantity_NOC_WHITE))
+        
+        # Off-screen renderer for producing static images for toggle buttons
+        self.renderer = ShapeRenderer()
+        
+        # Keep track of rendered images so they can be deleted at end of session
+        self.saved_images = []
+
+        # self.occ_panel.Refresh()
+
         self.part_sizer = wx.BoxSizer(wx.VERTICAL)
         self.latt_sizer = wx.BoxSizer(wx.VERTICAL)
-        
+        self.occ_sizer  = wx.BoxSizer(wx.VERTICAL)
+
         # Some special setup for geometry sizer (grid)
-        self.image_cols = 2
+        self.image_cols = 4
         self.geom_sizer = wx.FlexGridSizer(cols = self.image_cols, rows = 0, hgap = 5, vgap = 5)
         # Defines tightness of images in grid
-        self.geom_tight = 0.95
+        # self.geom_tight = 0.98
 
 
         # PARTS VIEW SETUP
@@ -314,8 +382,8 @@ class MainWindow(wx.Frame):
         self.partTree_ctc = MyTree(self.part_panel, style = self.treeStyle)
         self.partTree_ctc.SetBackgroundColour('white')
         self.part_sizer.Add(self.partTree_ctc, 1, wx.EXPAND)
-        
-        
+
+
         self.partTree_ctc.Bind(wx.EVT_RIGHT_DOWN,          self.OnRightClick)
         self.partTree_ctc.Bind(wx.EVT_TREE_BEGIN_DRAG,     self.OnTreeDrag)
         self.partTree_ctc.Bind(wx.EVT_TREE_END_DRAG,       self.OnTreeDrop)
@@ -331,9 +399,9 @@ class MainWindow(wx.Frame):
         # Binding for toggling of part/assembly images
         # though toggle buttons realised later
         self.Bind(wx.EVT_TOGGLEBUTTON, self.ImageToggled)
-        
-        self.no_image_ass  = 'Images/noimage_ass.png'
-        self.no_image_part = 'Images/noimage_part.png'
+
+        self.no_image_ass  = os.path.join(self.im_folder, 'noimage_ass.png')
+        self.no_image_part = os.path.join(self.im_folder, 'noimage_part.png')
 
 
 
@@ -343,13 +411,13 @@ class MainWindow(wx.Frame):
         self.latt_canvas = FigureCanvas(self.latt_panel, -1, self.latt_figure)
         self.latt_axes   = self.latt_figure.add_subplot(111)
         self.latt_canvas.Hide()
-        
+
         # MPL bindings
         self.latt_canvas.mpl_connect('button_press_event',   self.GetLattPos)
         # self.latt_canvas.mpl_connect('button_release_event', self.LattNodeSelected)
         self.latt_canvas.mpl_connect('button_release_event', self.OnLatticeMouseRelease)
         # self.latt_canvas.mpl_connect('pick_event', self.OnNodePick)
-        
+
         # Realise but hide, to be shown later when file loaded/data updated
         self.latt_tb = NavigationToolbar(self.latt_canvas)
 #        self.latt_tb.Realize()
@@ -361,31 +429,41 @@ class MainWindow(wx.Frame):
         self.default_colour  = 'red'
         self.selected_colour = 'blue'
         self.alt_colour      = 'green'
-        
+
         # self.latt_panel.Bind(wx.EVT_MOTION, self.MouseMoved)
 
         self.new_assembly_text = 'Unnamed item'
         self.new_part_text     = 'Unnamed item'
-        
+
         self.edge_alt_dict = {}
         self.node_alt_dict = {}
-        
+
 
 
         # OVERALL SIZERS SETUP
         self.part_panel.SetSizer(self.part_sizer)
         self.geom_panel.SetSizer(self.geom_sizer)
         self.latt_panel.SetSizer(self.latt_sizer)
+        self.occ_panel.SetSizer(self.occ_sizer)
 
-        self.grid.AddMany([(self.part_header), (self.geom_header), (self.latt_header),
-                           (self.part_panel, 1, wx.EXPAND), (self.geom_panel, 1, wx.EXPAND), (self.latt_panel, 1, wx.EXPAND)])
+        # self.grid.AddMany([(self.part_header), (self.geom_header), (self.latt_header),
+        #                    (self.part_panel, 1, wx.EXPAND), (self.geom_panel, 1, wx.EXPAND), (self.latt_panel, 1, wx.EXPAND)])
+
+        self.grid.AddMany([(self.part_header), (self.geom_header),
+                            (self.part_panel, 1, wx.EXPAND), (self.geom_panel, 1, wx.EXPAND),
+                            (self.latt_header), (self.occ_header),
+                            (self.latt_panel, 1, wx.EXPAND), (self.occ_panel, 1, wx.EXPAND)])
 
         # Set all grid elements to "growable" upon resizing
         # Flags (second argument is proportional size)
         self.grid.AddGrowableRow(1,0)
-        self.grid.AddGrowableCol(0,3)
-        self.grid.AddGrowableCol(1,2)
-        self.grid.AddGrowableCol(2,3)
+        self.grid.AddGrowableRow(3,0)
+        self.grid.AddGrowableCol(0,0)
+        self.grid.AddGrowableCol(1,0)
+        # self.grid.AddGrowableRow(1,0)
+        # self.grid.AddGrowableCol(0,3)
+        # self.grid.AddGrowableCol(1,2)
+        # self.grid.AddGrowableCol(2,3)
 
         # Set sizer for/update main panel
         self.box.Add(self.grid, 1, wx.ALL | wx.EXPAND, 5)
@@ -401,8 +479,8 @@ class MainWindow(wx.Frame):
 
         # "File is open" tag
         self.file_open = False
-        
-        
+
+
 
     def GetFilename(self, dialog_text = "Open file", starter = None, ender = None):
 
@@ -437,18 +515,18 @@ class MainWindow(wx.Frame):
 
 
 
-    def OnFileOpen(self, event):
-        
+    def OnFileOpen(self, event = None):
+
         # Get STEP filename
         self.open_filename = self.GetFilename(ender = ["stp", "step"]).split("\\")[-1]
-        
+
         # Return if filename is empty, i.e. if user selects "cancel" in file-open dialog
         if not self.open_filename:
             return
 
         # "File is open" tag
         self.file_open = True
-        
+
         # # Tracker for assembly modifications
         # self.changes_made_to_assembly = False
 
@@ -463,11 +541,15 @@ class MainWindow(wx.Frame):
         self.assembly.load_step(self.open_filename)
         self.assembly.create_tree()
         self.assembly.set_node_positions()
-        
+
+        # OCC 3D data returned here
+        self.assembly.OCC_read_file(self.open_filename)
+        self.assembly.OCC_link()
+
         ## Discard pile and alternative assembly
         self.assembly.discarded = StepParse()
         self.assembly.alt       = StepParse()
-        
+
         # self.ctc_dict     = {}
         # self.ctc_dict_inv = {}
 
@@ -477,29 +559,64 @@ class MainWindow(wx.Frame):
         self.button_img_dict = {}
 
 
+        self.saved_images = []
+
 
         # Show parts list and lattice
         self.DisplayPartsList()
-        
+
         # Clear geometry window if necessary
         try:
             self.geom_sizer.Clear(True)
         except:
-            pass    
-        
+            pass
+
         # Clear lattice plot if necessary
         try:
             self.latt_axes.clear()
         except:
             pass
-        
-        # Display lattice
+
+        # Display lattice and start 3D viewer data structure
         self.DisplayLattice(set_pos = False)
+        self.Update3DView(self.selected_items)
+
+
+
+    def Update3DView(self, items = None):
+
+        def display_part(part):
+            if part in self.assembly.OCC_dict:
+                shape = self.assembly.OCC_dict[part]
+                label, c = self.assembly.shapes[shape]
+                self.occ_panel._display.DisplayColoredShape(shape, color = Quantity_Color(c.Red(),
+                                                                                    c.Green(),
+                                                                                    c.Blue(),
+                                                                                    Quantity_TOC_RGB))
+
+        if not items:
+            items = self.assembly.leaves
+
+        self.occ_panel._display.EraseAll()
+
+        # for shape in self.assembly.shapes:
+        for item in items:
+            if item in self.assembly.leaves:
+                display_part(item)
+            else:
+                # Display all parts in selected assembly
+                parts = self.assembly.nodes[item]['parts']
+                for part in parts:
+                    display_part(part)
+                # pass
+
+        self.occ_panel._display.View.FitAll()
+        self.occ_panel._display.View.ZFitAll()
 
 
 
     def DisplayPartsList(self):
-        
+
         # Check if file loaded previously
         try:
             self.partTree_ctc.DeleteAllItems()
@@ -512,12 +629,12 @@ class MainWindow(wx.Frame):
             root_tag = self.assembly.part_dict[self.assembly.tree_dict[root_id]]
         except:
             root_tag = self.new_part_text
-        
+
         ctc_root_item = self.partTree_ctc.AddRoot(text = root_tag, ct_type = 1, data = {'id_': root_id, 'sort_id': root_id})
-        
+
         self.ctc_dict     = {}
         self.ctc_dict_inv = {}
-        
+
         self.ctc_dict[root_id] = ctc_root_item
         self.ctc_dict_inv[ctc_root_item] = root_id
 
@@ -549,33 +666,34 @@ class MainWindow(wx.Frame):
                     self.ctc_dict[node]         = ctc_item
                     self.ctc_dict_inv[ctc_item] = node
 
-        
+
+
         # Binding for checking of list items
         self.Bind(ctc.EVT_TREE_ITEM_CHECKED, self.TreeItemChecked)
         self.Bind(ctc.EVT_TREE_SEL_CHANGED,  self.TreeItemSelected)
-        
+
         self.partTree_ctc.ExpandAll()
 
         # Sort all tree items
         self.partTree_ctc.SortAllChildren(self.partTree_ctc.GetRootItem())
-        
-        
-        
-    def ScaleImage(self, img, p_w = None, scaling = 0.90):
-        
+
+
+
+    def ScaleImage(self, img, p_w = None, scaling = 0.95):
+
         # Get size of panel holding image if not given as argument
         if p_w == None:
             p_w  = self.geom_panel.GetSize()[0]/self.image_cols
-        
+
         h, w = img.GetSize()
-        
+
         if h/w > 1:
             h_new = p_w
             w_new = h_new*w/h
         else:
             w_new = p_w
             h_new = w_new*h/w
-        
+
         #Rescale
         img = img.Scale(w_new*scaling, h_new*scaling)
 
@@ -584,49 +702,49 @@ class MainWindow(wx.Frame):
 
 
     def get_node_colours(self, return_list = True):
-        
+
         selected_items = self.selected_items
-        
+
         # List version of node colours based on which are selected in parts view
         if return_list:
             node_colours = [self.selected_colour if node in selected_items else self.default_colour for node in self.assembly.nodes]
-            
+
         # Dictionary version (in case useful in future)
         else:
             node_colours = {node:(self.selected_colour if node in selected_items else self.default_colour) for node in self.assembly.nodes}
-        
+
         return node_colours
-        
+
 
 
     def DisplayLattice(self, set_pos = True, assembly = None):
 
         if set_pos:
             self.assembly.set_node_positions()
-        
+
         pos = self.assembly.get_positions()[0]
         print('Got positions')
-        
+
         colour_map = self.get_node_colours(return_list = False)
         print('Got colour map')
-        
+
         try:
             self.latt_axes.cla()
             print('Cleared axes')
         except:
             pass
-        
+
         # Draw to lattice panel figure
         # nx.draw(self.assembly, pos, node_color = colour_map, with_labels = True, ax = self.latt_axes)
 
         ## -----------------------------------------------
         ## HR 20/05/20
         ## Alternative lattice plot routine in Hasse-like format
-        
+
         # Draw outline of each level, with end point
         self.line_dict = {}
         for k,v in self.assembly.S_p.items():
-            
+
             # comb_ = np.log(comb(max_,el))
             if v <= 1:
                 line_pos = 0
@@ -638,34 +756,34 @@ class MainWindow(wx.Frame):
         self.node_dict = {}
         for node in self.assembly.nodes:
             self.node_dict[node] = self.latt_axes.scatter(pos[node][0], pos[node][1], c = colour_map[node], zorder = 1)
-            
+
         # Draw edges
         self.edge_dict = {}
         for u,v in self.assembly.edges:
             self.edge_dict[(u,v)] = self.latt_axes.plot([pos[u][0], pos[v][0]], [pos[u][1], pos[v][1]], c = 'red', zorder = 0)
-        
+
         # Create edges b/t infimum and leaves
         self.origin = (0,0)
         # Here set v in edge (u,v) to None if v is infimum
         for leaf in self.assembly.leaves:
             self.edge_dict[(leaf, None)] = self.latt_axes.plot([self.origin[0], pos[leaf][0]], [self.origin[1], pos[leaf][1]], c = 'red', zorder = 0)
-        
+
         ## -----------------------------------------------
-        
-        
-        
+
+
+
         # Minimise white space around plot in panel
         self.latt_figure.subplots_adjust(left = 0.01, bottom = 0.01, right = 0.99, top = 0.99)
-        
+
         # try:
         #     self.latt_axes.set_xlim(self.latt_plotlims[0])
         #     self.latt_axes.set_ylim(self.latt_plotlims[1])
         # except:
         #     pass
-    
+
         print('Finished "DisplayLattice"')
         self.DoDraw('DisplayLattice')
-    
+
 
 
     def DoDraw(self, called_by = None):
@@ -676,40 +794,40 @@ class MainWindow(wx.Frame):
         # Show lattice figure
         self.latt_canvas.draw()
         print('Done "draw"')
-        
+
         self.latt_canvas.Show()
         print('Done canvas "Show"')
 
         self.latt_tb.Show()
         print('Done toolbar "Show"')
-        
+
         # Update lattice panel layout
         self.latt_panel.Layout()
         print('Done layout')
-        
+
         self.drawn = True
         # line_number = 4
         # l = self.latt_axes.lines.pop(line_number)
         # print(l)
         # del l
         # print('Tried to remove line ', line_number)
-        
+
         # _c = nx.get_node_attributes(self.assembly, 'color')
         # for k,v in _c.items():
         #     print('Node/colour: ', k, v)
-        
+
 
 
     def OnRightClick(self, event):
-        
+
         # HR 5/3/20 SOME DUPLICATION HERE WITH OPERATION-SPECIFIC METHOD, E.G. "ONFLATTEN"
         # IN TERMS OF FILTERING/SELECTION OF OPTIONS BASED ON SELECTED ITEM TYPE/QUANTITY
-        
+
         # HR 5/3/20 SHOULD ADD CHECK HERE THAT MOUSE CLICK IS OVER A SELECTED ITEM
         # pos = event.GetPosition()
-        
+
         selected_items = self.selected_items
-               
+
         # Check selected items are present and suitable
         if not selected_items:
             print('No items selected')
@@ -753,7 +871,7 @@ class MainWindow(wx.Frame):
             self.Bind(wx.EVT_MENU, self.OnAssemble, menu_item)
             menu_item = menu.Append(wx.ID_ANY, 'Remove parts', 'Remove parts')
             self.Bind(wx.EVT_MENU, self.OnRemoveNode, menu_item)
-            
+
         # Create popup menu at current mouse position (default if no positional argument passed)
         self.PopupMenu(menu)
         menu.Destroy()
@@ -762,7 +880,7 @@ class MainWindow(wx.Frame):
 
     @property
     def selected_items(self):
-        
+
         # Get selected items
         #
         # Using GetSelections() rather than maintaining list
@@ -775,43 +893,74 @@ class MainWindow(wx.Frame):
             return _selected_items
         except AttributeError:
             return
-    
+
+
+
+    def render_by_id(self, id_):
+
+        # Get image from off-screen renderer by master ID
+        shape = self.assembly.OCC_dict[id_]
+        img_tag  = self.assembly.tree_dict[id_]
+        img_name = os.path.join(os.path.join(self.im_folder, img_tag) + '.jpg')
+        print('Image name in "render_by_id": ', img_name)
+
+        # If image saved successfully, make note for deletion later to avoid clutter
+        render_ok = self.renderer.DisplayShape(shape, color = 'RED', image_full_name = img_name)
+        if render_ok:
+            self.saved_images.append(img_name)
+
 
 
     def TreeItemChecked(self, event):
-        
+
+        def get_image(id_):
+
+            print('Getting image...')
+            # Try to find pre-rendered image in folder
+            img = self.assembly.tree_dict[id_]
+            # img = os.path.join(os.path.join(self.im_folder, img) + '.png')
+            img_name = os.path.join(os.path.join(self.im_folder, img) + '.jpg')
+
+            if not os.path.isfile(img):
+                # img = wx.Image(img, wx.BITMAP_TYPE_ANY)
+                try:
+                    ## Render off-screen
+                    print('Trying to render image...')
+                    self.render_by_id(id_)
+                    # img = wx.Image(img, wx.BITMAP_ANY_TYPE)
+                except Exception as e:
+                    print(e)
+                    if id_ in self.assembly.leaves:
+                        img_name = self.no_image_part
+                        # img = wx.Image(self.no_image_part, wx.BITMAP_TYPE_ANY)
+                    else:
+                        img_name = self.no_image_ass
+                        # img = wx.Image(self.no_image_ass, wx.BITMAP_TYPE_ANY)
+
+            img = wx.Image(img_name, wx.BITMAP_TYPE_ANY)
+            return img
+
         # Get checked item and search for corresponding image
-        #
         item = event.GetItem()
         id_  = self.ctc_dict_inv[item]
-        
+
         selected_items = self.selected_items
 
         if item.IsChecked():
             # Get image
-            # ---
-            # Try to find pre-rendered image in folder
-            img = self.assembly.tree_dict[id_]
-            img = os.path.join('Images', img + '.png')
-            if os.path.isfile(img):
-                img = wx.Image(img, wx.BITMAP_TYPE_ANY)
-            else:
-                if id_ in self.assembly.leaves:
-                    img = wx.Image(self.no_image_part, wx.BITMAP_TYPE_ANY)
-                else:
-                    img = wx.Image(self.no_image_ass, wx.BITMAP_TYPE_ANY)
-            
+            img = get_image(id_)
+
             # Create/add button in geom_panel
-            # 
+            #
             # Includes rescaling to panel
             img_sc = self.ScaleImage(img)
-            # 1/ TEST: Start with null image... 
+            # 1/ TEST: Start with null image...
             button = wx.BitmapToggleButton(self.geom_panel)
             button.SetBackgroundColour('white')
             self.geom_sizer.Add(button, 1, wx.EXPAND)
             # 2/ Add image after computing size
             button.SetBitmap(wx.Bitmap(self.ScaleImage(img_sc)))
-            
+
             # Update global list and dict
             #
             # Data is list, i.e. same format as "selected_items"
@@ -819,47 +968,48 @@ class MainWindow(wx.Frame):
             self.button_dict[id_]         = button
             self.button_dict_inv[button]  = id_
             self.button_img_dict[id_]     = img
-            
+
             # Toggle if already selected elsewhere
             if id_ in selected_items:
                 button.SetValue(True)
             else:
                 pass
-            
+
         else:
             # Remove button from geom_panel
             obj = self.button_dict[id_]
             obj.Destroy()
-            
+
             # Update global list and dict
             # self.checked_items.remove(item)
             self.button_dict.pop(id_)
             self.button_dict_inv.pop(obj)
             self.button_img_dict.pop(id_)
-           
+
         self.geom_panel.SetupScrolling(scrollToTop = False)
 
 
 
     def TreeItemSelected(self, event):
-        
+
         # Update images and lattice view
         self.UpdateToggledImages()
         self.UpdateSelectedNodes()
-        
+        self.Update3DView(self.selected_items)
+
 
 
     def ImageToggled(self, event):
-        
+
         id_ = self.button_dict_inv[event.GetEventObject()]
         self.UpdateListSelections(id_)
-        
-        
+
+
 
     def GetLattPos(self, event):
-        
+
         print('GetLattPos')
-        
+
         # print('%s: button = %d, x = %d, y = %d, xdata = %f, ydata = %f' %
         #       ('Double click' if event.dblclick else 'Single click', event.button,
         #        event.x, event.y, event.xdata, event.ydata))
@@ -867,16 +1017,16 @@ class MainWindow(wx.Frame):
         # Get position and type of click event
         self.click_pos = (event.xdata, event.ydata)
         # print('Click_position = ', self.click_pos)
-        
-    
-    
+
+
+
     def OnLatticeMouseRelease(self, event):
-        
+
         print('OnLatticeMouseRelease')
-        
+
         # Tolerance for node/line picker; tweak if necessary
         picker_tol = len(self.assembly.leaves)/100
-        
+
         # Retain zoom settings for later
         self.latt_plotlims = (self.latt_axes.get_xlim(), self.latt_axes.get_ylim())
         # print('Plot limits: ', self.latt_plotlims)
@@ -885,24 +1035,24 @@ class MainWindow(wx.Frame):
         if event.button == 3:
             self.OnRightClick(event)
             return
-        
+
         # ...otherwise select item
         # ---
         # Functor to find nearest value in sorted list
         # ---
         # HR 4/3/20 THIS SHOULD BE REWRITTEN COMPLETELY TO USE MPL PICKER/ARTIST FUNCTIONALITY
         def get_nearest(value, list_in):
-                            
+
             # print('list_in = ', list_in)
             # First check if value beyond upper bound
             if value > list_in[-1]:
                 print('case 1: beyond upper bound')
                 answer = list_in[-1]
-                
+
             else:
                 for i,el in enumerate(list_in):
                     if value < el:
-                        
+
                         # Then check if below lower bound
                         if i == 0:
                             print('case 2: below lower bound')
@@ -917,13 +1067,13 @@ class MainWindow(wx.Frame):
                             else:
                                 answer = list_in[i-1]
                             break
-                    
+
             return answer
 
         # Check that click and release are in same position
         # as FigureCanvas also allows dragging to move plot position
         if event.xdata == self.click_pos[0] and event.ydata == self.click_pos[1]:
-            
+
             # Get nearest y value (same as lattice level)
             y_list = self.assembly.levels_p_sorted[:]
             # Must prepend lattice level of single part to list
@@ -931,7 +1081,7 @@ class MainWindow(wx.Frame):
             y_  = get_nearest(event.ydata, y_list)
             print('y_list = ', y_list)
             print('y_     = ', y_)
-            
+
             # Get nearest x value within known y level
             # x_dict = {self.assembly.nodes[el]['x']:el for el in self.assembly.nodes if self.assembly.nodes[el]['n_p'] == y_}
             x_all  = self.assembly.levels_dict[y_]
@@ -941,51 +1091,51 @@ class MainWindow(wx.Frame):
             print('x_list = ', x_list, '\n')
             print('x_dict = ', x_dict, '\n')
             print('x_     = ', x_, '\n')
-            
+
             # Get nearest node
             id_ = x_dict[x_]
-            
+
             print('Nearest node: x = %f, y = %f; node ID: %i\n' %
                   (x_, y_, id_))
-            
-            
-            
+
+
+
             ##############################
-            
+
             ## HR 1/6/20 Added calculation of distance nearest node + tolerance
             ## If outside tolerance, ignore nodes
             ## and generate point on nearest line instead
             ## then unrank and generate alternative assembly
-            
+
             x_dist = event.xdata - x_
             y_dist = event.ydata - y_
             dist = np.sqrt(x_dist**2 + y_dist**2)
-            
+
             print('x_dist = %f, y_dist = %f, dist = %f' % (x_dist, y_dist, dist))
-            
+
             # If too far from any node, get alternative assembly by unranking position
             if dist > picker_tol:
                 print('Outside tolerance, getting position on nearest line')
-                
+
                 list_ = [el for el in range(len(self.assembly.leaves)+1)]
                 y__ = get_nearest(event.ydata, list_)
-                
-                
-                self.OnNewNodeClick(y__, event.xdata)                
+
+
+                self.OnNewNodeClick(y__, event.xdata)
                 return
 
             print('Inside tolerance, (de)selecting nearest node')
-            
+
             ##############################
-            
-            
-            
+
+
+
             # Update items in parts list
             self.UpdateListSelections(id_)
-            
+
             # Update node in lattice view
             # self.UpdateSelectedNodes(id_)
-            
+
             if id_ in self.selected_items:
                 self.node_dict[id_].set_facecolor(self.selected_colour)
             else:
@@ -998,15 +1148,15 @@ class MainWindow(wx.Frame):
 
     ## HR 1/6/20 abandoned OnNodePick as MPL generates pick_event for every artist within pick radius
     ## Leaving here for reference
-    
+
     # def OnNodePick(self, event):
-        
+
     #     print('OnNodePick')
-        
-    #     # N.B. MPL generates a pick event for EVERY artist at the click point!        
-        
+
+    #     # N.B. MPL generates a pick event for EVERY artist at the click point!
+
     #     event.artist.set_color('green')
-        
+
     #     # Get node ID from artist object (i.e. reverse dictionary lookup)
     #     if event.artist in self.node_dict.values():
     #         print('Found artist in node_dict!')
@@ -1016,7 +1166,7 @@ class MainWindow(wx.Frame):
     #         id_ = next(line for line, artist in self.line_dict.items() if event.artist == artist)
     #     else:
     #         id_ = None
-            
+
     #     print('ID = ', id_)
     #     print('Artist = ', event.artist)
     #     print('Event index = ', event.ind)
@@ -1024,16 +1174,16 @@ class MainWindow(wx.Frame):
 
 
     def OnNewNodeClick(self, y_, x_):
-        
+
         print('Creating new nodes and edges by unranking')
-        
+
         # Ref to alternative assembly for ease of reading
         # ---------------------
         # ass = self.assembly
         # alt = self.assembly.alt
         ax  = self.latt_axes
         # ---------------------
-        
+
         try:
             # Remove MPL plot objects corresponding to alternative nodes and edges...
             # ...if they exist
@@ -1041,7 +1191,7 @@ class MainWindow(wx.Frame):
                 for k,v in self.assembly.alt.node_dict.items():
                     # Remove from plot (MPL)
                     v.remove()
-                    
+
             if self.assembly.alt.edge_dict:
                 for k,v in self.assembly.alt.edge_dict.items():
                     # Remove from plot (MPL)
@@ -1053,47 +1203,47 @@ class MainWindow(wx.Frame):
 
 
         n = len(self.assembly.leaves)
-        
+
         S     = self.assembly.S_p[y_]
         width = np.log(S-1)
         rank  = int(round(((x_/width) + 0.5)*(S-1)))
         print('rank = ', rank)
-        
+
         # Quantise x_ to be at position of rank
         x_quant = ((rank/(S-1))-0.5)*np.log(S-1)
-        
+
         _parts  = self.assembly.unrank(n, y_, rank)
-        
-        
-        
+
+
+
         # Create and populate alternative assembly
         _node_one = self.create_new_id()
         _node_two = _node_one + 1
-        
+
         _parts_ids = [self.assembly.leaf_dict_inv[el] for el in _parts]
         _others_ids = list(self.assembly.leaves - set(_parts_ids))
 
         # ...and also create second node containing all other leaves, for illustration
         _others = [self.assembly.leaf_dict[el] for el in _others_ids]
-        
+
         _y_others = len(_others_ids)
         S_others = self.assembly.S_p[_y_others]
 
         _others_rank = self.assembly.rank(_others)
         _x_others = ((_others_rank/(S_others-1))-0.5)*np.log(S_others-1)
-        
+
         ## NX 1. Create and populate data of two new nodes
-        
-        
-        
+
+
+
         ## ------------------------
-        
+
         ### TO TRY COPYING ASSEMBLY AND REMOVING/ADDING ONLY THOSE NODES NECESSARY
         ### TO AVOID OPTIMAL_EDIT_PATHS TAKING SEVERAL MINUTES!
 
         self.assembly.alt = self.assembly.copy()
         # alt = self.assembly.alt
-        
+
         # Remove unwanted edges between root and leaves
         _root = self.assembly.get_root()
         _leaves = self.assembly.leaves
@@ -1110,11 +1260,11 @@ class MainWindow(wx.Frame):
         self.assembly.alt.add_edge(_root,_node_one)
         for leaf in _parts_ids:
             self.assembly.alt.add_edge(_node_one,leaf)
-        
+
         self.assembly.alt.add_edge(_root,_node_two)
         for leaf in _others_ids:
             self.assembly.alt.add_edge(_node_two,leaf)
-        
+
         # ## ------------------------
 
 
@@ -1123,7 +1273,7 @@ class MainWindow(wx.Frame):
         self.assembly.alt.nodes[_node_one]['n_p']   = y_
         self.assembly.alt.nodes[_node_one]['n_a']   = y_ + 1
         self.assembly.alt.nodes[_node_one]['parts'] = _parts_ids
-        
+
         self.assembly.alt.nodes[_node_two]['x']     = _x_others
         self.assembly.alt.nodes[_node_two]['n_p']   = _y_others
         self.assembly.alt.nodes[_node_two]['n_a']   = _y_others + 1
@@ -1131,13 +1281,13 @@ class MainWindow(wx.Frame):
 
         self.assembly.alt.node_dict = {}
         self.assembly.alt.edge_dict = {}
-                
-        
-        
+
+
+
         # # ## NX 2. ...copy data to new leaf nodes and root in new assembly...
-            
+
         # # leaves_and_supremum = list(leaves) + [ass.get_root()]
-        
+
         # # for _node in leaves_and_supremum:
         # #     alt.add_node(_node)
         # #     for _k,_v in ass.nodes[_node].items():
@@ -1150,28 +1300,28 @@ class MainWindow(wx.Frame):
         # ## NX 4. ...then b/t second new node and its leaves...
         # for _leaf in _others_ids:
         #     alt.add_edge(_node_two,_leaf)
-        
+
         # ## NX 4. ...then edges between root and two new nodes
         # alt.add_edge(root,_node_one)
         # alt.add_edge(root,_node_two)
-    
+
         # for u,v in old_edges:
         #     self.assembly.alt.remove_edge(u,v)
-        
+
         # Get positions and populate dictionary of MPL objects
         self.assembly.alt.set_node_positions()
         pos_nodes, pos_edges = self.assembly.alt.get_positions()
-        
+
         for node in self.assembly.alt.nodes:
             pos = pos_nodes[node]
             self.assembly.alt.node_dict[node] = ax.scatter(pos[0], pos[1], c = self.alt_colour, zorder = 0)
-        
-        
+
+
         ## HR 17/6/20
         ## MAJOR NOTE: NO EDGES FROM ORIGINAL ASSEMBLY ARE REMOVED AS DOING THAT BREAKS NX'S OPTIMAL_EDIT_PATHS
         ## AND CAUSES IT TO SLOW DOWN SEVERELY
         ## INSTEAD RETAIN THEM AND VARY COLOUR
-        
+
         for edge in self.assembly.alt.edges:
             pos = pos_edges[edge]
             # if edge in self.assembly.edges:
@@ -1179,13 +1329,13 @@ class MainWindow(wx.Frame):
             # else:
             #     c = self.alt_colour
             self.assembly.alt.edge_dict[edge] = ax.plot([pos[0][0], pos[1][0]], [pos[0][1], pos[1][1]], c = self.alt_colour, zorder = 0)[0]
-                        
+
         self.DoDraw('OnNewNodeClick')
 
 
-    
+
     def UpdateSelectedNodes(self, nodes = None):
-        
+
         if not nodes:
             nodes = self.selected_items
         elif type(nodes) == int:
@@ -1202,23 +1352,23 @@ class MainWindow(wx.Frame):
 
         self.DoDraw('UpdateSelectedNodes')
 
-        
+
 
     def UpdateListSelections(self, id_):
-        
+
         # Select/deselect parts list item
         # With "select = True", SelectItem toggles state if multiple selections enabled
         self.partTree_ctc.SelectItem(self.ctc_dict[id_], select = True)
 
 
-    
+
     def UpdateToggledImages(self):
-        
+
         for id_, button in self.button_dict.items():
             button.SetValue(False)
-        
+
         selected_items = self.selected_items
-        
+
         for id_ in selected_items:
             # id_    = self.ctc_dict_inv[item]
             # if id_ in self.button_dict:
@@ -1228,18 +1378,18 @@ class MainWindow(wx.Frame):
                 button.SetValue(True)
             else:
                 pass
-    
-    
-    
+
+
+
     def OnAssemble(self, event = None):
-        
+
         selected_items = self.selected_items
-        
+
         # Check selected items are present and suitable
         if not selected_items:
             print('No items selected')
             return
-        
+
         # Further checks
         if len(selected_items) > 1:
             print('Selected items to assemble:\n')
@@ -1248,14 +1398,14 @@ class MainWindow(wx.Frame):
         else:
             print('Cannot assemble: no items or only one item selected\n')
             return
-        
+
         # Check root is not present in selected items
         if self.assembly.get_root() in selected_items:
             print('Cannot create assembly: items to assemble include root')
             return
-         
 
-               
+
+
         # MAIN "ASSEMBLE" ALGORITHM
         # ---
         # Get selected item that is highest up tree (i.e. lowest depth)
@@ -1266,26 +1416,26 @@ class MainWindow(wx.Frame):
         highest_node = min(depths, key = depths.get)
         new_parent      = self.assembly.get_parent(highest_node)
         print('New parent = ', new_parent)
-        
+
         # Get valid ID for new node then create
         new_id   = self.create_new_id()
         self.assembly.add_node(new_id)
         self.assembly.add_edge(new_parent, new_id)
 
         self.assembly.tree_dict[new_id] = self.new_assembly_text
-        
+
         # Move all selected items to be children of new node
         for id_ in selected_items:
             self.assembly.move_node(id_, new_id)
-        
+
         # Propagate changes
         self.ClearGUIItems()
         self.OnTreeCtrlChanged()
-        
-        
-        
+
+
+
     def create_new_id(self):
-        
+
         # Get new item ID that is greater than largest existing ID
         try:
             id_ = max([el for el in self.assembly.nodes] + [el_ for el_ in self.assembly.discarded.nodes]) + 1
@@ -1295,30 +1445,30 @@ class MainWindow(wx.Frame):
             except AttributeError:
                 return 0
         return id_
-                
-        
-    
+
+
+
     def OnTreeCtrlChanged(self):
-        
+
         print('Running OnTreeCtrlChanged')
         # Remake parts list and lattice
         # HR 17/02/2020 CAN BE IMPROVED SO ONLY AFFECTED CTC AND LATTICE ITEMS MODIFIED
         self.DisplayPartsList()
         self.DisplayLattice()
-        
+
 
 
     def OnFlatten(self, event):
-        
+
         selected_items = self.selected_items
-        
+
         # Check selected items are present and suitable
         if not selected_items:
             print('No items selected')
             return
-        
+
         leaves = self.assembly.leaves
-        
+
         # Further checks
         if len(selected_items) == 1:
             id_ = selected_items[-1]
@@ -1332,7 +1482,7 @@ class MainWindow(wx.Frame):
             return
 
 
-        
+
         # MAIN "FLATTEN" ALGORITHM
         # ---
         # Get all children of item
@@ -1341,11 +1491,11 @@ class MainWindow(wx.Frame):
         print('Children parts = ', children_parts)
         children_ass   = [el for el in children_ if not el in leaves]
         print('Children assemblies = ', children_ass)
-        
+
         # Move all children that are indivisible parts
         for child in children_parts:
             self.assembly.move_node(child, id_)
-        
+
         # Delete all children that are assemblies
         for child in children_ass:
             successors = self.assembly.successors(child)
@@ -1355,22 +1505,22 @@ class MainWindow(wx.Frame):
             self.assembly.discarded.nodes[child]['flatten_children'] = successors
             self.assembly.discarded.nodes[child]['flatten_parent']   = parent
             self.assembly.remove_node(child)
-        
+
         # Propagate changes
         self.ClearGUIItems()
         self.OnTreeCtrlChanged()
-        
-        
-        
+
+
+
     def OnDisaggregate(self, event = None):
-        
+
         selected_items = self.selected_items
 
         # Check selected items are present and suitable
         if not selected_items:
             print('No items selected')
             return
-        
+
         leaves = self.assembly.leaves
 
         # Further checks
@@ -1384,9 +1534,9 @@ class MainWindow(wx.Frame):
         else:
             print('Cannot disaggregate: no or more than one item selected\n')
             return
-        
 
-                
+
+
         # MAIN "DISAGGREGATE" ALGORITHM
         # ---
         # Get valid ID for new node then create
@@ -1395,27 +1545,27 @@ class MainWindow(wx.Frame):
             new_id   = self.create_new_id()
             self.assembly.add_node(new_id)
             self.assembly.add_edge(id_, new_id)
-            
+
             print('New assembly ID = ', new_id)
             self.assembly.tree_dict[new_id] = self.new_part_text
-        
+
         # Propagate changes
         self.ClearGUIItems()
         self.OnTreeCtrlChanged()
-    
-    
-    
+
+
+
     def OnAggregate(self, event = None):
-        
+
         selected_items = self.selected_items
 
         # Check selected items are present and suitable
         if not selected_items:
             print('No items selected')
             return
-        
+
         leaves = self.assembly.leaves
-        
+
         # Further checks
         if len(selected_items) == 1:
             id_ = selected_items[-1]
@@ -1442,25 +1592,25 @@ class MainWindow(wx.Frame):
             self.assembly.discarded.add_edges_from(subgraph.edges)
             ## Delete from assembly
             self.assembly.remove_nodes_from(subgraph.nodes)
-        
+
         # Add list of children IDs as data for future reference
         self.assembly.nodes[id_]['aggregated'] = children_
-        
+
         # Propagate changes
         self.ClearGUIItems()
         self.OnTreeCtrlChanged()
 
-    
-    
+
+
     def OnAddNode(self, event = None):
 
         selected_items = self.selected_items
-        
+
         # Check selected items are present and suitable
         if not selected_items:
             print('No items selected')
             return
-        
+
         leaves = self.assembly.leaves
 
         # Further checks
@@ -1487,25 +1637,25 @@ class MainWindow(wx.Frame):
         new_id = self.create_new_id()
         self.assembly.add_node(new_id)
         self.assembly.add_edge(id_, new_id)
-        
+
         print('New node ID = ', new_id)
         self.assembly.tree_dict[new_id] = self.new_part_text
-        
+
         # Propagate changes
         self.ClearGUIItems()
         self.OnTreeCtrlChanged()
-        
-    
-    
+
+
+
     def OnRemoveNode(self, event = None):
 
         selected_items = self.selected_items
-        
+
         # Check selected items are present and suitable
         if not selected_items:
             print('No items selected')
             return
-        
+
         # Further checks
         if len(selected_items) >= 1:
             print('Selected item(s) to remove:\n')
@@ -1517,7 +1667,7 @@ class MainWindow(wx.Frame):
         else:
             print('Cannot remove: no items selected\n')
             return
-        
+
         # Check root is not present in selected items
         _root = self.assembly.get_root()
         if _root in selected_items:
@@ -1527,7 +1677,7 @@ class MainWindow(wx.Frame):
             else:
                 print('Cannot remove root; removing other selected nodes')
                 selected_items.remove(_root)
-         
+
 
 
         # MAIN "REMOVE NODE" ALGORITHM
@@ -1544,8 +1694,8 @@ class MainWindow(wx.Frame):
             self.assembly.discarded.nodes[node]['remove_parent'] = parent
             # ...then remove subtree from main assembly
             self.assembly.remove_nodes_from(subgraph.nodes)
-            
-                
+
+
             # And lastly, if only one remaining sibling, remove it as redundant
             # N.B. No need to track back up through parents and remove redundant nodes...
             # ...if they are thus created, as this is done by "remove_redundant_nodes"...
@@ -1558,7 +1708,7 @@ class MainWindow(wx.Frame):
             if len(siblings) == 1:
                 print('Removing single remaining sibling as redundant nodes not allowed')
                 self.assembly.remove_node(siblings[-1])
-        
+
         # Propagate changes
         self.ClearGUIItems()
         self.OnTreeCtrlChanged()
@@ -1566,13 +1716,13 @@ class MainWindow(wx.Frame):
 
 
     def sort_check(self):
-        
+
         # Check only one non-part item selected
         # ---
         if not self.assembly.nodes:
             print('No assembly present')
             return
-        
+
         if len(self.partTree_ctc.GetSelections()) != 1:
             print('No or more than one item(s) selected')
             return
@@ -1581,40 +1731,40 @@ class MainWindow(wx.Frame):
         if not item.HasChildren():
             print('Item is leaf node, cannot sort')
             return
-        
+
         children_count = item.GetChildrenCount(recursively = False)
         if not children_count > 1:
             print('Cannot sort: item has single child')
             return
-        
+
         # If all checks above passed...
         return True
 
 
 
     def OnSortTool(self, event):
-        
+
         if not self.sort_check():
             return
-        
+
         item = self.partTree_ctc.GetSelection()
-        
+
         # Toggle sort mode, then sort
         if self.partTree_ctc.alphabetical:
             self.partTree_ctc.alphabetical = False
         else:
             self.partTree_ctc.alphabetical = True
         self.partTree_ctc.SortChildren(item)
-        
-    
-    
+
+
+
     def OnSortReverseTool(self, event):
-        
+
         if not self.sort_check():
             return
-        
+
         item = self.partTree_ctc.GetSelection()
-        
+
         # Toggle sort mode, then sort
         if self.partTree_ctc.reverse_sort:
             self.partTree_ctc.reverse_sort = False
@@ -1625,33 +1775,34 @@ class MainWindow(wx.Frame):
 
 
     def OnReconcileTool(self, event = None):
-        
+
         self.statbar.SetStatusText('Tree reconciliation running...')
 
         paths, cost, cost_from_edits, node_edits, edge_edits = StepParse.Reconcile(self.assembly, self.assembly.alt)
 
         _textout = 'Node edits: {}\nEdge edits: {}\nTotal cost (Networkx): {}\nTotal cost (no. of edits): {}'.format(
             node_edits, edge_edits, cost, cost_from_edits)
-        
+
+        self.statbar.SetStatusText('Tree reconciliation finished')
         self.DoNothingDialog(event, _textout)
-        
-    
-        
+
+
+
 
     def OnSortAlpha(self, event = None):
-        
+
         # Sort children of selected items alphabetically
         item = self.partTree_ctc.GetSelection()
         self.partTree_ctc.alphabetical = True
         self.partTree_ctc.SortChildren(item)
-        
-       
-        
+
+
+
     def OnSortByID(self, event = None):
-        
+
         # Sort children of selected item by ID
         item = self.partTree_ctc.GetSelection()
-        
+
         # First reset "sort_id" as can be changed by drap and drop elsewhere
         # ---
         # MUST create shallow copy here (".copy()") to avoid strange behaviour
@@ -1662,41 +1813,41 @@ class MainWindow(wx.Frame):
         for child in children:
             data = self.partTree_ctc.GetPyData(child)
             data['sort_id'] = data['id_']
-            
+
         self.partTree_ctc.alphabetical = False
         self.partTree_ctc.SortChildren(item)
 
-        
-        
+
+
     def OnTreeDrag(self, event):
-        
+
         # Drag and drop events are vetoed by default
         event.Allow()
         self.tree_drag_item = event.GetItem()
         id_ = self.ctc_dict_inv[event.GetItem()]
         print('ID of drag item = ', id_)
         self.tree_drag_id = id_
-        
-        
-        
+
+
+
     def OnTreeDrop(self, event):
-          
+
         # Allow event: drag and drop events vetoed by WX by default
         event.Allow()
-        
+
         drop_item = event.GetItem()
         id_ = self.ctc_dict_inv[drop_item]
         print('ID of item at drop point = ', id_)
-     
+
         drag_parent = self.tree_drag_item.GetParent()
         drop_parent = drop_item.GetParent()
-        
+
         # Check if root node involved; return if so
         if (not drag_parent) or (not drop_parent):
             print('Drag or drop item is root: cannot proceed')
             return
 
-            
+
         # CASE 1: DRAG AND DROP ITEMS HAVE THE SAME PARENT: MODIFY SORT ORDER
         # ---
         # If so, prepare sibling items by changing "sort_id" in part tree data
@@ -1704,10 +1855,10 @@ class MainWindow(wx.Frame):
         # HR 17/03/20: WHOLE SECTION NEEDS REWRITING TO BE SHORTER AND MORE EFFICIENT
         # PROBABLY VIA A FEW LIST OPERATIONS
         if drop_parent == drag_parent:
-            
+
             sort_id = 1
             (child_, cookie_) = self.partTree_ctc.GetFirstChild(drop_parent)
-            
+
             # If drop item found, slip drag item into its place
             if child_ == drop_item:
                 self.partTree_ctc.GetPyData(self.tree_drag_item)['sort_id'] = sort_id
@@ -1720,7 +1871,7 @@ class MainWindow(wx.Frame):
 
             child_ = self.partTree_ctc.GetNextSibling(child_)
             while child_:
-                
+
                 # If drop item found, slip drag item into its place
                 if child_ == drop_item:
                     self.partTree_ctc.GetPyData(self.tree_drag_item)['sort_id'] = sort_id
@@ -1736,7 +1887,7 @@ class MainWindow(wx.Frame):
             self.partTree_ctc.alphabetical = False
             self.partTree_ctc.SortChildren(drop_parent)
             return
-        
+
         # CASE 2: DRAG AND DROP ITEMS DO NOT HAVE THE SAME PARENT: SIMPLE MOVE
         # ---
         # Drop item is sibling unless it's root, then it's parent
@@ -1750,50 +1901,50 @@ class MainWindow(wx.Frame):
         self.ClearGUIItems()
         self.OnTreeCtrlChanged()
 
-        
-        
+
+
     def OnTreeLabelEditEnd(self, event):
-        
+
         # Propagate label text to other objects
         # HR 21/02/20 THIS SHOULD BE IMPROVED TO CHECK WHETHER TEXT HAS ACTUALLY
         # CHANGED USING EXTRA BINDING TO BEGIN-EDIT EVENT
         # ---
-                
+
         text_before = event.GetItem().GetText()
         wx.CallAfter(self.AfterTreeLabelEdit, event, text_before)
         event.Skip()
-        
-        
-        
+
+
+
     def AfterTreeLabelEdit(self, event, text_before):
-        
+
         item_ = event.GetItem()
         text_ = item_.GetText()
-        if text_before != text_:        
-            id_   = self.ctc_dict_inv[item_] 
+        if text_before != text_:
+            id_   = self.ctc_dict_inv[item_]
             self.assembly.nodes[id_]['label'] = text_
-        
-        
-        
+
+
+
     def ClearGUIItems(self):
-        
+
         # Destroy all button objects
         for button_ in self.button_dict:
             obj = self.button_dict[button_]
             obj.Destroy()
-            
+
         # Clear all relevant lists/dictionaries
         self.ctc_dict.clear()
         self.ctc_dict_inv.clear()
-        
+
         self.button_dict.clear()
         self.button_dict_inv.clear()
         self.button_img_dict.clear()
 
-       
-           
+
+
     def okay_to_proceed(self, message = 'Dialog', caption = 'Okay to proceed?', style = wx.OK | wx.CANCEL):
-        
+
         # Dialogue to return true if user clicks "OK"
         okay = wx.MessageDialog(self, message = message, caption = caption, style = style)
         answer = okay.ShowModal()
@@ -1820,7 +1971,7 @@ class MainWindow(wx.Frame):
             GNU General Public License for more details.\n
             You should have received a copy of the GNU General Public License
             along with this program. If not, see <https://www.gnu.org/licenses/>."""
- 
+
         abt = wx.MessageDialog(self, abt_text, 'About StrEmbed-5-4', wx.OK)
         # Show dialogue that stops process (modal)
         abt.ShowModal()
@@ -1834,11 +1985,11 @@ class MainWindow(wx.Frame):
         self.statbar.SetStatusText("Window size = " + format(self.GetSize()))
         wx.CallAfter(self.AfterResize, event)
         event.Skip()
-        
-        
-        
+
+
+
     def AfterResize(self, event = None):
-        
+
         # Resize all images in geometry view
         if self.file_open:
             # Get size of grid element
@@ -1847,13 +1998,13 @@ class MainWindow(wx.Frame):
                 img    = self.button_img_dict[k]
                 img_sc = self.ScaleImage(img, width_)
                 v.SetBitmap(wx.Bitmap(self.ScaleImage(img_sc)))
-                
+
             self.geom_panel.SetupScrolling(scrollToTop = False)
 
-        
+
 
     # def MouseMoved(self, event):
-        
+
     #     # # Display mouse coordinates (panel and absolute) upon movement
     #     # self.panel_pos  = event.GetPosition()
     #     # self.screen_pos = wx.GetMousePosition()
@@ -1869,24 +2020,42 @@ class MainWindow(wx.Frame):
 
         if not text:
             text = 'Functionality to be added'
-            
-        nowt = wx.MessageDialog(self, text, "Do nothing dialog", wx.OK)
+
+        nowt = wx.MessageDialog(self, text, "Dialog", wx.OK)
         # Create modal dialogue that stops process
         nowt.ShowModal()
         nowt.Destroy()
 
 
 
+    def remove_saved_images(self):
+
+        # Remove all image files from directory, if any present
+        if self.saved_images:
+            self.statbar.SetStatusText("Removing saved images...")
+            for image in self.saved_images:
+                try:
+                    image_file = os.path.join(os.getcwd(), image)
+                    os.remove(image_file)
+                except Exception as e:
+                    print('Could not delete file at: ', image)
+
+
+
     def OnExit(self, event):
 
+        self.remove_saved_images()
         # Close program
         self.Close(True)
 
-        
+
 
 if __name__ == '__main__':
-    app = wit.InspectableApp()
+    # app = wit.InspectableApp()
+    app = wx.App()
     frame = MainWindow()
+
     frame.Show()
     frame.Maximize()
+
     app.MainLoop()

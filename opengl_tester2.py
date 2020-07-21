@@ -20,6 +20,7 @@ class WxMyTestApp(wx.App):
     self.canvas = glcanvas.GLCanvas(self.viewFrame)
     self.context = glcanvas.GLContext(self.canvas)
     self.canvas.Bind(wx.EVT_PAINT, self.OnPaint)
+    self.canvas.Bind(wx.EVT_LEFT_DOWN, self.OnLeftDown)
     return True
 
   def OnPaint(self, event):
@@ -27,7 +28,11 @@ class WxMyTestApp(wx.App):
     dc = wx.PaintDC(self.canvas)
     self.canvas.SetCurrent(self.context)
     self.redraw(event)
+
     
+  def OnLeftDown(self, event):
+      print('Left down')
+
   def redraw(self, ignoredEvent):
     glPushMatrix()
     glColor3f(1.0, 1.0, 0.0)
