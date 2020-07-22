@@ -180,21 +180,31 @@ class ShapeRenderer(OCCViewer.Viewer3d):
 
         self._rendered = False
 
-    def DisplayShape(self, shapes, material = None, texture = None, color = None, transparency = None, update = True, image_full_name = None):
 
-        self.EraseAll()
-        super().DisplayShape(shapes, material, texture,
-                                                        color, transparency, update)
-        print('Dumping rendered image to file...')
-        if not image_full_name:
-            image_full_name = "testimage.jpeg"
-        print('Full file name in "DisplayShape": ', image_full_name)
-        self.View.Dump(image_full_name)
-        if not self._rendered:
-            self.EraseAll()
-            self.View.Dump(image_full_name)
-            self._rendered = True
-        return True
+
+    # def render_items(self, shape, label, c, image_full_name = None):
+    #     self.DisplayShape(shape, color = Quantity_Color(c.Red(),
+    #                                                             c.Green(),
+    #                                                             c.Blue(),
+    #                                                             Quantity_TOC_RGB), image_full_name = image_full_name)
+    #     # print('Image name: ', image_full_name, ' in "display_part"')
+
+
+
+    # def DisplayShape(self, shapes, material = None, texture = None, color = None, transparency = None, update = True, image_full_name = None):
+
+    #     self.EraseAll()
+    #     super().DisplayShape(shapes, material, texture, color, transparency, update)
+    #     print('Dumping rendered image to file...')
+    #     if not image_full_name:
+    #         image_full_name = "testimage.jpeg"
+    #     print('Full file name in "DisplayShape": ', image_full_name)
+    #     self.View.Dump(image_full_name)
+    #     if not self._rendered:
+    #         self.EraseAll()
+    #         self.View.Dump(image_full_name)
+    #         self._rendered = True
+    #     return True
 
 
 
@@ -361,6 +371,8 @@ class MainWindow(wx.Frame):
         
         # Keep track of rendered images so they can be deleted at end of session
         self.saved_images = []
+        # If true, show all items contained by selected items
+        self.occ_show_sub = True
 
         # self.occ_panel.Refresh()
 
@@ -544,7 +556,7 @@ class MainWindow(wx.Frame):
 
         # OCC 3D data returned here
         self.assembly.OCC_read_file(self.open_filename)
-        self.assembly.OCC_link()
+        # self.assembly.OCC_link()
 
         ## Discard pile and alternative assembly
         self.assembly.discarded = StepParse()
@@ -595,17 +607,17 @@ class MainWindow(wx.Frame):
                                                                                     Quantity_TOC_RGB))
 
         if not items:
-            items = self.assembly.leaves
+            items = self.assembly.nodes
 
         self.occ_panel._display.EraseAll()
 
-        # for shape in self.assembly.shapes:
         for item in items:
             if item in self.assembly.leaves:
                 display_part(item)
             else:
                 # Display all parts in selected assembly
                 parts = self.assembly.nodes[item]['parts']
+                parts.add(item)
                 for part in parts:
                     display_part(part)
                 # pass
@@ -898,16 +910,53 @@ class MainWindow(wx.Frame):
 
     def render_by_id(self, id_):
 
-        # Get image from off-screen renderer by master ID
-        shape = self.assembly.OCC_dict[id_]
-        img_tag  = self.assembly.tree_dict[id_]
-        img_name = os.path.join(os.path.join(self.im_folder, img_tag) + '.jpg')
+        render_ok = False
+        self.renderer.EraseAll()
+
+        # Get all children of item
+        if self.assembly.nodes[id_]['all']:
+            children = self.assembly.nodes[id_]['all']
+        else:
+            children = [id_]
+        print('Children = ', children)
+
+        # Render each child, if possible
+        for child in children:
+            if child in self.assembly.OCC_dict:
+                shape = self.assembly.OCC_dict[child]
+                label, c = self.assembly.shapes[shape]
+                print('Rendering shape for item ', child)
+                self.renderer.DisplayShape(shape, color = Quantity_Color(c.Red(),
+                                                                         c.Green(),
+                                                                         c.Blue(),
+                                                                         Quantity_TOC_RGB))
+            else:
+                print('Cannot render item ', child, ' as not present as OCC CAD model')
+                # return
+
+        img_tag = self.assembly.tree_dict[id_]
+        img_name = self.get_image_name(img_tag)
         print('Image name in "render_by_id": ', img_name)
 
-        # If image saved successfully, make note for deletion later to avoid clutter
-        render_ok = self.renderer.DisplayShape(shape, color = 'RED', image_full_name = img_name)
+        try:
+            print('Fitting and dumping image ', img_name)
+            self.renderer.View.FitAll()
+            self.renderer.View.ZFitAll()
+            self.renderer.View.Dump(img_name)
+            render_ok = True
+        except Exception as e:
+            print('Could not dump image to file; exception follows')
+            print(e)
+
         if render_ok:
+            print('Adding image ', img_name, 'to "saved_images"')
             self.saved_images.append(img_name)
+
+
+
+    def get_image_name(self, img):
+        img_path = os.path.join(os.path.join(self.im_folder, img) + '.jpg')
+        return img_path
 
 
 
@@ -916,28 +965,44 @@ class MainWindow(wx.Frame):
         def get_image(id_):
 
             print('Getting image...')
-            # Try to find pre-rendered image in folder
-            img = self.assembly.tree_dict[id_]
-            # img = os.path.join(os.path.join(self.im_folder, img) + '.png')
-            img_name = os.path.join(os.path.join(self.im_folder, img) + '.jpg')
+            print('ID = ', id_)
 
-            if not os.path.isfile(img):
-                # img = wx.Image(img, wx.BITMAP_TYPE_ANY)
-                try:
-                    ## Render off-screen
-                    print('Trying to render image...')
-                    self.render_by_id(id_)
-                    # img = wx.Image(img, wx.BITMAP_ANY_TYPE)
-                except Exception as e:
-                    print(e)
-                    if id_ in self.assembly.leaves:
-                        img_name = self.no_image_part
-                        # img = wx.Image(self.no_image_part, wx.BITMAP_TYPE_ANY)
-                    else:
-                        img_name = self.no_image_ass
-                        # img = wx.Image(self.no_image_ass, wx.BITMAP_TYPE_ANY)
+            # Check if ID has CAD model, which is the case if it comes from STEP file...
+            # ...and therefore begins with "#..."
+            # ...if not, then can't create image from it...
+            print('Tree_dict: ', self.assembly.tree_dict)
+            # if id_ not in self.assembly.tree_dict:
+            if not self.assembly.tree_dict[id_].startswith('#'):
+                if id_ in self.assembly.leaves:
+                    print('Item is leaf')
+                    img_name = self.no_image_part
+                else:
+                    print('Item is assembly')
+                    img_name = self.no_image_ass
 
-            img = wx.Image(img_name, wx.BITMAP_TYPE_ANY)
+            # ...else if it does have a CAD model, create image of all contained parts
+            else:
+                # Try to find pre-rendered image in folder
+                tag = self.assembly.tree_dict[id_]
+                img_name = self.get_image_name(tag)
+
+                # Get image from folder, otherwise render and dump it
+                if os.path.isfile(img_name):
+                    print('Found image file')
+                else:
+                    print('Did not find image file')
+                    try:
+                        # Render off-screen
+                        print('Trying to render image...')
+                        print('ID = ', id_)
+                        self.render_by_id(id_)
+                    except Exception as e:
+                        print('Could not render image; exception follows')
+                        print(e)
+                        img_name = False
+
+            if img_name:
+                img = wx.Image(img_name, wx.BITMAP_TYPE_ANY)
             return img
 
         # Get checked item and search for corresponding image
@@ -949,12 +1014,15 @@ class MainWindow(wx.Frame):
         if item.IsChecked():
             # Get image
             img = get_image(id_)
+            if not img:
+                print('Image not created')
+                return
 
             # Create/add button in geom_panel
             #
             # Includes rescaling to panel
             img_sc = self.ScaleImage(img)
-            # 1/ TEST: Start with null image...
+            # 1/ Start with null image...
             button = wx.BitmapToggleButton(self.geom_panel)
             button.SetBackgroundColour('white')
             self.geom_sizer.Add(button, 1, wx.EXPAND)
@@ -2030,15 +2098,18 @@ class MainWindow(wx.Frame):
 
     def remove_saved_images(self):
 
+        text = 'Removing saved images...'
         # Remove all image files from directory, if any present
         if self.saved_images:
-            self.statbar.SetStatusText("Removing saved images...")
+            self.statbar.SetStatusText(text)
+            print(text)
             for image in self.saved_images:
                 try:
                     image_file = os.path.join(os.getcwd(), image)
                     os.remove(image_file)
                 except Exception as e:
-                    print('Could not delete file at: ', image)
+                    print('Could not delete file at: ', image, '; exception follows')
+                    print(e)
 
 
 

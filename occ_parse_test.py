@@ -10,12 +10,12 @@ from step_parse_5_4 import StepParse
 from StrEmbed_5_4 import ShapeRenderer
 a = StepParse()
 
-file = '5 parts_{3,1},1.STEP'
-# file = 'Torch Assembly.STEP'
+# file = '5 parts_{3,1},1.STEP'
+file = 'Torch Assembly.STEP'
 # file = 'PARKING_TROLLEY.STEP'
 
 a.load_step(file)
 a.create_tree()
 a.OCC_read_file(file)
-a.OCC_link()
+# a.OCC_link()
 

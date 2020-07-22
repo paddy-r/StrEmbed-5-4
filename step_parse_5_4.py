@@ -465,16 +465,10 @@ class StepParse(nx.DiGraph):
         #
         # MUST CORRECT IN FUTURE TO BE SINGLE FILE-READ METHOD...
         # ...FOR BOTH GRAPH AND OCC/SHAPE DATA
-        
+
         _get_shapes()
         self.shapes = output_shapes
         # return self.output_shapes
-        #######################################################################
-
-
-    # Map OCC data to graph structure
-    def OCC_link(self):
-
         # Get all TopoDS_Solid objects in OCC dict
         OCC_list  = [k for k in self.shapes.keys() if type(k) in self.topo_types]
         # Get all leaves in tree_dict (could also just get list from leaves method)
@@ -482,17 +476,30 @@ class StepParse(nx.DiGraph):
 
         # Map master IDs to OCC objects
         self.OCC_dict = dict(zip(tree_list, OCC_list))
+        #######################################################################
 
-        # self.OCC_dict = OCC_dict
 
-        # # Build lists of labels from OCC and StepParse file-read to check order of objects is same
-        # # Want list_OCC == list_tree, in terms of order of objects
-        # self.labels_OCC  = {}
-        # self.labels_tree = {}
-        # self.labels_OCC['leaves']  = [v[0] for k,v in self.shapes.items() if type(k) in self.topo_types]
-        # self.labels_tree['leaves'] = [self.part_dict[v] for k,v in self.tree_dict.items() if k in self.leaves]
+    # # Map OCC data to graph structure
+    # def OCC_link(self):
 
-        # return OCC_dict
+    #     # Get all TopoDS_Solid objects in OCC dict
+    #     OCC_list  = [k for k in self.shapes.keys() if type(k) in self.topo_types]
+    #     # Get all leaves in tree_dict (could also just get list from leaves method)
+    #     tree_list = [k for k in self.tree_dict.keys() if k in self.leaves]
+
+    #     # Map master IDs to OCC objects
+    #     self.OCC_dict = dict(zip(tree_list, OCC_list))
+
+    #     # self.OCC_dict = OCC_dict
+
+    #     # # Build lists of labels from OCC and StepParse file-read to check order of objects is same
+    #     # # Want list_OCC == list_tree, in terms of order of objects
+    #     # self.labels_OCC  = {}
+    #     # self.labels_tree = {}
+    #     # self.labels_OCC['leaves']  = [v[0] for k,v in self.shapes.items() if type(k) in self.topo_types]
+    #     # self.labels_tree['leaves'] = [self.part_dict[v] for k,v in self.tree_dict.items() if k in self.leaves]
+
+    #     # return OCC_dict
 
 
 
@@ -639,7 +646,7 @@ class StepParse(nx.DiGraph):
             _nodes = self.nodes
 
         # Convert to list if only one item
-        if len(_nodes) == 1:
+        if type(_nodes) == int:
             _nodes = [_nodes]
 
         leaves = self.leaves
@@ -659,8 +666,10 @@ class StepParse(nx.DiGraph):
             self.nodes[node]['n_p'] = n_p
             if node in leaves:
                 self.nodes[node]['parts'] = {node}
+                self.nodes[node]['all']   = {node}
             else:
                 self.nodes[node]['parts'] = des_parts
+                self.nodes[node]['all']   = des_all
 
 
 
