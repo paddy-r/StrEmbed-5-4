@@ -21,7 +21,7 @@ All communication, including bug/issues reports, to: h.p.rice@leeds.ac.uk
 Three scripts are required:
 1. StrEmbed_5_4
 2. step_parse_5_4
-3. wxDisplay (from Python-OCC here: https://github.com/tpaviot/pythonocc-core)
+3. wxDisplay (from Python-OCC [here](https://github.com/tpaviot/pythonocc-core))
 
 It is recommended that you download the entire folder, which contains a users' manual. STEP files are a common data exchange format containing both assembly information (i.e. part-whole information) and shape data; several examples are provided. The "Images" folder contains images necessary for the application; temporary images corresponding to the parts in a loaded STEP file are also stored there.
 
