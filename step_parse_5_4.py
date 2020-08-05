@@ -298,15 +298,15 @@ class StepParse(nx.DiGraph):
         #TH: created root node now fill in next layer
         #TH: create dict for tree, as each node needs a unique name
         i = [starter] # Iterates through nodes
-        self.tree_dict = odict()
-        self.tree_dict[i[0]] = root_node_ref
+        self.step_dict = odict()
+        self.step_dict[i[0]] = root_node_ref
 
         def tree_next_layer(self, parent):
-            root_node = self.tree_dict[i[0]]
+            root_node = self.step_dict[i[0]]
             for line in self.nauo_refs:
                 if line[1] == root_node:
                     i[0] += 1
-                    self.tree_dict[i[0]] = str(line[2])
+                    self.step_dict[i[0]] = str(line[2])
                     self.add_node(i[0])
                     self.add_edge(parent, i[0])
                     tree_next_layer(self, i[0])
@@ -325,7 +325,7 @@ class StepParse(nx.DiGraph):
         ## Adapted from src/Extend/DataExchange.py script from python-occ, here:
         ## https://github.com/tpaviot/pythonocc-core
 
-        # Changed to odict to allow direct mapping to tree_dict (see later)
+        # Changed to odict to allow direct mapping to step_dict (see later)
         output_shapes = odict()
 
         # Create an handle to a document
@@ -471,35 +471,12 @@ class StepParse(nx.DiGraph):
         # return self.output_shapes
         # Get all TopoDS_Solid objects in OCC dict
         OCC_list  = [k for k in self.shapes.keys() if type(k) in self.topo_types]
-        # Get all leaves in tree_dict (could also just get list from leaves method)
-        tree_list = [k for k in self.tree_dict.keys() if k in self.leaves]
+        # Get all leaves in step_dict (could also just get list from leaves method)
+        tree_list = [k for k in self.step_dict.keys() if k in self.leaves]
 
         # Map master IDs to OCC objects
         self.OCC_dict = dict(zip(tree_list, OCC_list))
         #######################################################################
-
-
-    # # Map OCC data to graph structure
-    # def OCC_link(self):
-
-    #     # Get all TopoDS_Solid objects in OCC dict
-    #     OCC_list  = [k for k in self.shapes.keys() if type(k) in self.topo_types]
-    #     # Get all leaves in tree_dict (could also just get list from leaves method)
-    #     tree_list = [k for k in self.tree_dict.keys() if k in self.leaves]
-
-    #     # Map master IDs to OCC objects
-    #     self.OCC_dict = dict(zip(tree_list, OCC_list))
-
-    #     # self.OCC_dict = OCC_dict
-
-    #     # # Build lists of labels from OCC and StepParse file-read to check order of objects is same
-    #     # # Want list_OCC == list_tree, in terms of order of objects
-    #     # self.labels_OCC  = {}
-    #     # self.labels_tree = {}
-    #     # self.labels_OCC['leaves']  = [v[0] for k,v in self.shapes.items() if type(k) in self.topo_types]
-    #     # self.labels_tree['leaves'] = [self.part_dict[v] for k,v in self.tree_dict.items() if k in self.leaves]
-
-    #     # return OCC_dict
 
 
 
@@ -933,10 +910,10 @@ class StepParse(nx.DiGraph):
         # ---------------------------------------------------------------------
         # STAGE 1: MAP NODES/EDGES B/T THE TWO ASSEMBLIES
 
-        # Currently done simply via labels
+        # Currently done simply via tags
         # More sophisticated metrics to be implemented in future
 
-        # Method of assembly class (StepParse) to set item labels to their IDs
+        # Method of assembly class (StepParse) to set item tags to their IDs
         a1.set_all_tags()
         a2.set_all_tags()
 
@@ -944,10 +921,10 @@ class StepParse(nx.DiGraph):
 
         #     print('\nleaves:', a.leaves, '\n')
         #     for node in a.nodes:
-        #         print('node ', node, 'label: ', a.nodes[node]['label'])
+        #         print('node ', node, 'tag: ', a.nodes[node]['tag'])
         #     print('\n')
         #     for u,v in a.edges:
-        #         print('edge ', u,v,  'label: ', a.edges[(u,v)]['label'])
+        #         print('edge ', u,v,  'tag: ', a.edges[(u,v)]['tag'])
         #     print('\n')
 
 
@@ -988,26 +965,26 @@ class StepParse(nx.DiGraph):
                 print('Mapped ', tag1, 'to ', tag2)
 
             # # 2. ...then do test based on parts contained by nodes...
-            # if label1 and label2 in (a1.nodes or a2.nodes) and not _eq:
+            # if tag1 and tag2 in (a1.nodes or a2.nodes) and not _eq:
             #     try:
             #         _eq = item1['parts'] == item2['parts']
             #     except:
             #         pass
 
             # # 3. ...then do test based on Levenshtein distance b/t items, if leaves
-            # if not _eq and (label1 and label2 in (a1.leaves or a2.leaves)):
+            # if not _eq and (tag1 and tag2 in (a1.leaves or a2.leaves)):
 
-            #     label1_ = remove_special_chars(label1)
-            #     label2_ = remove_special_chars(label2)
+            #     tag1_ = remove_special_chars(tag1)
+            #     tag2_ = remove_special_chars(tag2)
 
             #     try:
-            #         dist = similarity(label1_, label2_)
+            #         dist = similarity(tag1_, tag2_)
             #         _eq  = dist < lev_tol
             #     except:
             #         pass
 
             # if _eq:
-            #     print('Nodes/edges mapped:     ', label1, label2)
+            #     print('Nodes/edges mapped:     ', tag1, tag2)
             # else:
             #     pass
 

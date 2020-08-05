@@ -160,51 +160,22 @@ class MyTree(ctc.CustomTreeCtrl):
 
 class ShapeRenderer(OCCViewer.Viewer3d):
     # HR 17/7/20
-    # Adapted/simplified from OffScreenRenderer in OCCViewer in OCC.Display
+    # Adapted/simplified from OffScreenRenderer in OCCViewer <- OCC.Display
     # Dumps render of shape to jpeg file
     """ The offscreen renderer is inherited from Viewer3d.
     The DisplayShape method is overriden to export to image
     each time it is called.
     """
-    def __init__(self, screen_size=(1000,1000)):
+    def __init__(self, screen_size = (1000,1000)):
         OCCViewer.Viewer3d.__init__(self, None)
-        # create the renderer
         self.Create()
         self.View.SetBackgroundColor(Quantity_Color(Quantity_NOC_WHITE))
         self.SetSize(screen_size[0], screen_size[1])
         self.DisableAntiAliasing()
         self.SetModeShaded()
-        # self.set_bg_gradient_color([206, 215, 222], [128, 128, 128])
         # self.display_triedron()
-        # self.capture_number = 0
 
         self._rendered = False
-
-
-
-    # def render_items(self, shape, label, c, image_full_name = None):
-    #     self.DisplayShape(shape, color = Quantity_Color(c.Red(),
-    #                                                             c.Green(),
-    #                                                             c.Blue(),
-    #                                                             Quantity_TOC_RGB), image_full_name = image_full_name)
-    #     # print('Image name: ', image_full_name, ' in "display_part"')
-
-
-
-    # def DisplayShape(self, shapes, material = None, texture = None, color = None, transparency = None, update = True, image_full_name = None):
-
-    #     self.EraseAll()
-    #     super().DisplayShape(shapes, material, texture, color, transparency, update)
-    #     print('Dumping rendered image to file...')
-    #     if not image_full_name:
-    #         image_full_name = "testimage.jpeg"
-    #     print('Full file name in "DisplayShape": ', image_full_name)
-    #     self.View.Dump(image_full_name)
-    #     if not self._rendered:
-    #         self.EraseAll()
-    #         self.View.Dump(image_full_name)
-    #         self._rendered = True
-    #     return True
 
 
 
@@ -617,6 +588,7 @@ class MainWindow(wx.Frame):
             else:
                 # Display all parts in selected assembly
                 parts = self.assembly.nodes[item]['parts']
+                # Add self in case STEP model exists for it (e.g. if previously disaggregated)
                 parts.add(item)
                 for part in parts:
                     display_part(part)
@@ -636,9 +608,9 @@ class MainWindow(wx.Frame):
             pass
 
         # Create root node...
-        root_id  = self.assembly.get_root()
+        root_id = self.assembly.get_root()
         try:
-            root_tag = self.assembly.part_dict[self.assembly.tree_dict[root_id]]
+            root_tag = self.assembly.part_dict[self.assembly.step_dict[root_id]]
         except:
             root_tag = self.new_part_text
 
@@ -658,15 +630,15 @@ class MainWindow(wx.Frame):
                 if depth == i:
                     parent_id = [el for el in self.assembly.predecessors(node)][-1]
                     ctc_parent = self.ctc_dict[parent_id]
-                    # Check if 'label' field exists, which means name has been changed before...
+                    # Check if 'label' field exists, which means name has been changed by user previously...
                     if 'label' in self.assembly.nodes[node]:
                         # ...but only if it's a string, as CTC will break if it's an integer...
                         label = self.assembly.nodes[node]['label']
                         if type(label) == str:
                             ctc_text = label
                     # ...else, get name from part dictionary...
-                    elif self.assembly.tree_dict[node] in self.assembly.part_dict:
-                        ctc_text = self.assembly.part_dict[self.assembly.tree_dict[node]]
+                    elif self.assembly.step_dict[node] in self.assembly.part_dict:
+                        ctc_text = self.assembly.part_dict[self.assembly.step_dict[node]]
                     # ...or set to default text
                     elif node in self.assembly.leaves:
                         ctc_text = self.new_part_text
@@ -934,7 +906,7 @@ class MainWindow(wx.Frame):
                 print('Cannot render item ', child, ' as not present as OCC CAD model')
                 # return
 
-        img_tag = self.assembly.tree_dict[id_]
+        img_tag = self.assembly.step_dict[id_]
         img_name = self.get_image_name(img_tag)
         print('Image name in "render_by_id": ', img_name)
 
@@ -970,9 +942,8 @@ class MainWindow(wx.Frame):
             # Check if ID has CAD model, which is the case if it comes from STEP file...
             # ...and therefore begins with "#..."
             # ...if not, then can't create image from it...
-            print('Tree_dict: ', self.assembly.tree_dict)
-            # if id_ not in self.assembly.tree_dict:
-            if not self.assembly.tree_dict[id_].startswith('#'):
+            # if id_ not in self.assembly.step_dict:
+            if not self.assembly.step_dict[id_].startswith('#'):
                 if id_ in self.assembly.leaves:
                     print('Item is leaf')
                     img_name = self.no_image_part
@@ -983,7 +954,7 @@ class MainWindow(wx.Frame):
             # ...else if it does have a CAD model, create image of all contained parts
             else:
                 # Try to find pre-rendered image in folder
-                tag = self.assembly.tree_dict[id_]
+                tag = self.assembly.step_dict[id_]
                 img_name = self.get_image_name(tag)
 
                 # Get image from folder, otherwise render and dump it
@@ -1490,7 +1461,7 @@ class MainWindow(wx.Frame):
         self.assembly.add_node(new_id)
         self.assembly.add_edge(new_parent, new_id)
 
-        self.assembly.tree_dict[new_id] = self.new_assembly_text
+        self.assembly.step_dict[new_id] = self.new_assembly_text
 
         # Move all selected items to be children of new node
         for id_ in selected_items:
@@ -1615,7 +1586,7 @@ class MainWindow(wx.Frame):
             self.assembly.add_edge(id_, new_id)
 
             print('New assembly ID = ', new_id)
-            self.assembly.tree_dict[new_id] = self.new_part_text
+            self.assembly.step_dict[new_id] = self.new_part_text
 
         # Propagate changes
         self.ClearGUIItems()
@@ -1707,7 +1678,7 @@ class MainWindow(wx.Frame):
         self.assembly.add_edge(id_, new_id)
 
         print('New node ID = ', new_id)
-        self.assembly.tree_dict[new_id] = self.new_part_text
+        self.assembly.step_dict[new_id] = self.new_part_text
 
         # Propagate changes
         self.ClearGUIItems()
@@ -1973,11 +1944,6 @@ class MainWindow(wx.Frame):
 
     def OnTreeLabelEditEnd(self, event):
 
-        # Propagate label text to other objects
-        # HR 21/02/20 THIS SHOULD BE IMPROVED TO CHECK WHETHER TEXT HAS ACTUALLY
-        # CHANGED USING EXTRA BINDING TO BEGIN-EDIT EVENT
-        # ---
-
         text_before = event.GetItem().GetText()
         wx.CallAfter(self.AfterTreeLabelEdit, event, text_before)
         event.Skip()
@@ -1989,7 +1955,7 @@ class MainWindow(wx.Frame):
         item_ = event.GetItem()
         text_ = item_.GetText()
         if text_before != text_:
-            id_   = self.ctc_dict_inv[item_]
+            id_ = self.ctc_dict_inv[item_]
             self.assembly.nodes[id_]['label'] = text_
 
 
