@@ -19,7 +19,7 @@ All communication, including bug/issues reports, to: h.p.rice@leeds.ac.uk
 <b>This research is supported by the UK Engineering and Physical Sciences Research Council (EPSRC) under grant number EP/S016406/1.</b>
 
 Three scripts are required:
-1. StrEmbed_5_4
+1. StrEmbed_5_4 (main script)
 2. step_parse_5_4
 3. wxDisplay (from Python-OCC [here](https://github.com/tpaviot/pythonocc-core))
 
