@@ -22,9 +22,11 @@ There are several ways to run StrEmbed-5-4, which are described below and in mor
 
 (1) Run as a Python script in your own environment. Three scripts are required:
 
-1. StrEmbed_5_4 (main script)
-2. step_parse_5_4 (contains class for for file and graph operations)
-3. wxDisplay (for 3D viewer, from Python-OCC [here](https://github.com/tpaviot/pythonocc-core))
+1. ```StrEmbed_5_4 (main script)
+2. ```step_parse_5_4``` (contains class for for file and graph operations)
+3. ```wxDisplay``` (for 3D viewer, from Python-OCC [here](https://github.com/tpaviot/pythonocc-core))
+
+```StrEmbed-5-4``` has a large number of dependencies that must also be installed in your environment. Contact the developers if you encounter problems.
 
 (2) Run as a standalone executable. This does not require you to have Python or any IDE installed. Simply double-click on the file ```StrEmbed-5-4.exe``` and the user interface will appear. Please note that two executables are provided, with and without console output for debugging purposes. Please make a record of the output if you encounter problems and wish to contact the developers for help.
 
