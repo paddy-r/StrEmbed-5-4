@@ -28,7 +28,7 @@ There are several ways to run ```StrEmbed-5-4```, which are described below and 
 
 ```StrEmbed-5-4``` has a large number of dependencies that must also be installed in your environment. Contact the developers if you encounter problems.
 
-(2) Run as a standalone executable. This does not require you to have Python or any IDE installed. Simply double-click on the file ```StrEmbed-5-4.exe``` and the user interface will appear. Please note that two executables are provided, with and without console output for debugging purposes. Please make a record of the output if you encounter problems and wish to contact the developers for help.
+(2) Run as a standalone executable. This does not require you to have Python or any IDE installed. Simply double-click on one of the files ending with  ```.exe``` and the user interface will appear. Please note that two executables are provided, with and without console output for debugging purposes. Please make a record of the output if you encounter problems and wish to contact the developers for help.
 
 Several STEP file examples are provided. The "Images" folder contains images necessary for the application; temporary images corresponding to the parts in a loaded STEP file are also stored there. As a result, any images beginning with ```#```, which are created on-the-fly at runtime, can be deleted once you have closed the application.
 
