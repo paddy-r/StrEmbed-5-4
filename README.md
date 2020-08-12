@@ -22,7 +22,7 @@ There are several ways to run StrEmbed-5-4, which are described below and in mor
 
 (1) Run as a Python script in your own environment. Three scripts are required:
 
-1. ```StrEmbed_5_4 (main script)
+1. ```StrEmbed_5_4``` (main script)
 2. ```step_parse_5_4``` (contains class for for file and graph operations)
 3. ```wxDisplay``` (for 3D viewer, from Python-OCC [here](https://github.com/tpaviot/pythonocc-core))
 
