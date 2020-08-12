@@ -14,11 +14,11 @@ LS2 9JT
 
 All communication, including bug/issues reports, to: h.p.rice@leeds.ac.uk
 
-<i> StrEmbed-5-4 is a graphical user interface for visualisation and manipulation of part-whole relationships in assemblies of parts, and is written in Python. The user can read files in the [STEP format](https://en.wikipedia.org/wiki/ISO_10303-21), which is a common data exchange format containing both assembly information (i.e. part-whole information) and shape data; Functionality is based on [StrEmbed-4](https://github.com/hhchau/StrEmbed-4) (and earlier versions) by Hau Hing Chau, written in Perl.</i>  
+<i> ```StrEmbed-5-4``` is a graphical user interface for visualisation and manipulation of part-whole relationships in assemblies of parts, and is written in Python. The user can read files in the [STEP format](https://en.wikipedia.org/wiki/ISO_10303-21), which is a common data exchange format containing both assembly information (i.e. part-whole information) and shape data; Functionality is based on [```StrEmbed-4```](https://github.com/hhchau/StrEmbed-4) (and earlier versions) by Hau Hing Chau, written in Perl.</i>  
 
 <b>This research is supported by the UK Engineering and Physical Sciences Research Council (EPSRC) under grant number EP/S016406/1.</b>
 
-There are several ways to run StrEmbed-5-4, which are described below and in more detail in the user manual. The simplest is to download the latest release, which contains all the Python scripts and a standalone executable file. To run StrEmbed-5-4 you can then do one of the following:
+There are several ways to run ```StrEmbed-5-4```, which are described below and in more detail in the user manual. The simplest is to download the latest release, which contains all the Python scripts and a standalone executable file. To run StrEmbed-5-4 you can then do one of the following:
 
 (1) Run as a Python script in your own environment. Three scripts are required:
 
@@ -32,6 +32,6 @@ There are several ways to run StrEmbed-5-4, which are described below and in mor
 
 Several STEP file examples are provided. The "Images" folder contains images necessary for the application; temporary images corresponding to the parts in a loaded STEP file are also stored there. As a result, any images beginning with ```#```, which are created on-the-fly at runtime, can be deleted once you have closed the application.
 
-StrEmbed-5-4 was developed in Spyder, an IDE for Python that is packaged with the Anaconda distribution, which can be downloaded [here](https://www.anaconda.com/distribution/).
+```StrEmbed-5-4``` was developed in Spyder, an IDE for Python that is packaged with the Anaconda distribution, which can be downloaded [here](https://www.anaconda.com/distribution/).
 
-StrEmbed-5-4 is published under the GNU General Purpose License version 3, which is given in the LICENSE document.
+```StrEmbed-5-4``` is published under the GNU General Purpose License version 3, which is given in the LICENSE document.
