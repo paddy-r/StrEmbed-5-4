@@ -27,20 +27,20 @@ from collections import OrderedDict as odict
 # Regular expression module
 import re
 
-# Natural Language Toolkit module, for Levenshtein distance
-import nltk
+# # Natural Language Toolkit module, for Levenshtein distance
+# import nltk
 
 import numpy as np
 from scipy.special import comb
 # from math import log
 
-# For powerset construction
-from itertools import chain, combinations
+# # For powerset construction
+# from itertools import chain, combinations
 
-def powerset(iterable):
-    "e.g. powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
-    s = list(iterable)
-    return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
+# def powerset(iterable):
+#     "e.g. powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+#     s = list(iterable)
+#     return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
 
 # Import networkx for plotting lattice
 import networkx as nx

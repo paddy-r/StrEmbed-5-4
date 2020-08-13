@@ -15,7 +15,7 @@
 
 ### BUGS LOG
 # 1 // 7/2/20
-# Images in geometry view does not update when resized until next resize
+# Images in selector view does not update when resized until next resize
 # e.g. when maximised, images remain small
 # FIXED Feb 2020 with CallAfter
 # ---
@@ -191,8 +191,11 @@ class MainWindow(wx.Frame):
 
         wx.Frame.__init__(self, parent = None, title = "StrEmbed-5-4")
         self.SetBackgroundColour('white')
-        self.im_folder = 'Images'
-
+        # self.im_folder = 'Images'
+        self._path = os.getcwd()
+        # print('CWD:\n', self._path)
+        self.im_folder = self._path + '\Images'
+        # print('Images folder:\n', self.im_folder)
 
 
         ### MENU BAR
@@ -209,8 +212,8 @@ class MainWindow(wx.Frame):
         partMenu = wx.Menu()
         menuBar.Append(partMenu, "&Parts")
 
-        geomMenu = wx.Menu()
-        menuBar.Append(geomMenu, "&Geometry")
+        slctMenu = wx.Menu()
+        menuBar.Append(slctMenu, "&Selector")
 
         lattMenu = wx.Menu()
         menuBar.Append(lattMenu, "&Lattice")
@@ -320,14 +323,14 @@ class MainWindow(wx.Frame):
         self.grid = wx.FlexGridSizer(cols = 2, rows = 4, hgap = 10, vgap = 10)
 
         self.part_header = wx.StaticText(self.panel, label = "Parts view")
-        self.geom_header = wx.StaticText(self.panel, label = "Geometry view")
+        self.slct_header = wx.StaticText(self.panel, label = "Selector view")
         self.latt_header = wx.StaticText(self.panel, label = "Lattice view")
         self.occ_header  = wx.StaticText(self.panel, label = "3D view")
 
         self.panel_style = wx.BORDER_SIMPLE
         self.part_panel = wx.Panel(self.panel, style = self.panel_style)
-        self.geom_panel = scr.ScrolledPanel(self.panel, style = self.panel_style)
-        self.geom_panel.SetupScrolling()
+        self.slct_panel = scr.ScrolledPanel(self.panel, style = self.panel_style)
+        self.slct_panel.SetupScrolling()
         self.latt_panel = wx.Panel(self.panel, style = self.panel_style)
 
         # Create 3D viewer panel and manually set panel style (and bg colour)
@@ -351,11 +354,11 @@ class MainWindow(wx.Frame):
         self.latt_sizer = wx.BoxSizer(wx.VERTICAL)
         self.occ_sizer  = wx.BoxSizer(wx.VERTICAL)
 
-        # Some special setup for geometry sizer (grid)
+        # Some special setup for selector sizer (grid)
         self.image_cols = 4
-        self.geom_sizer = wx.FlexGridSizer(cols = self.image_cols, rows = 0, hgap = 5, vgap = 5)
+        self.slct_sizer = wx.FlexGridSizer(cols = self.image_cols, rows = 0, hgap = 5, vgap = 5)
         # Defines tightness of images in grid
-        # self.geom_tight = 0.98
+        # self.slct_tight = 0.98
 
 
         # PARTS VIEW SETUP
@@ -374,10 +377,10 @@ class MainWindow(wx.Frame):
 
 
 
-        # GEOMETRY VIEW SETUP
+        # SELECTOR VIEW SETUP
         # Set up image-view grid, where "rows = 0" means the sizer updates dynamically
         # according to the number of elements it holds
-#        self.geom_sizer.Add(self.image_grid, 1, wx.EXPAND)
+#        self.slct_sizer.Add(self.image_grid, 1, wx.EXPAND)
 
         # Binding for toggling of part/assembly images
         # though toggle buttons realised later
@@ -425,15 +428,15 @@ class MainWindow(wx.Frame):
 
         # OVERALL SIZERS SETUP
         self.part_panel.SetSizer(self.part_sizer)
-        self.geom_panel.SetSizer(self.geom_sizer)
+        self.slct_panel.SetSizer(self.slct_sizer)
         self.latt_panel.SetSizer(self.latt_sizer)
         self.occ_panel.SetSizer(self.occ_sizer)
 
-        # self.grid.AddMany([(self.part_header), (self.geom_header), (self.latt_header),
-        #                    (self.part_panel, 1, wx.EXPAND), (self.geom_panel, 1, wx.EXPAND), (self.latt_panel, 1, wx.EXPAND)])
+        # self.grid.AddMany([(self.part_header), (self.slct_header), (self.latt_header),
+        #                    (self.part_panel, 1, wx.EXPAND), (self.slct_panel, 1, wx.EXPAND), (self.latt_panel, 1, wx.EXPAND)])
 
-        self.grid.AddMany([(self.part_header), (self.geom_header),
-                            (self.part_panel, 1, wx.EXPAND), (self.geom_panel, 1, wx.EXPAND),
+        self.grid.AddMany([(self.part_header), (self.slct_header),
+                            (self.part_panel, 1, wx.EXPAND), (self.slct_panel, 1, wx.EXPAND),
                             (self.latt_header), (self.occ_header),
                             (self.latt_panel, 1, wx.EXPAND), (self.occ_panel, 1, wx.EXPAND)])
 
@@ -455,8 +458,8 @@ class MainWindow(wx.Frame):
         # Set max panel sizes to avoid resizing issues
         self.part_panel_max = self.part_panel.GetSize()
         self.part_panel.SetMaxSize(self.part_panel_max)
-        self.geom_panel_max = self.geom_panel.GetSize()
-        self.geom_panel.SetMaxSize(self.geom_panel_max)
+        self.slct_panel_max = self.slct_panel.GetSize()
+        self.slct_panel.SetMaxSize(self.slct_panel_max)
         self.latt_panel_max = self.latt_panel.GetSize()
         self.latt_panel.SetMaxSize(self.latt_panel_max)
 
@@ -548,9 +551,9 @@ class MainWindow(wx.Frame):
         # Show parts list and lattice
         self.DisplayPartsList()
 
-        # Clear geometry window if necessary
+        # Clear selector window if necessary
         try:
-            self.geom_sizer.Clear(True)
+            self.slct_sizer.Clear(True)
         except:
             pass
 
@@ -667,7 +670,7 @@ class MainWindow(wx.Frame):
 
         # Get size of panel holding image if not given as argument
         if p_w == None:
-            p_w  = self.geom_panel.GetSize()[0]/self.image_cols
+            p_w  = self.slct_panel.GetSize()[0]/self.image_cols
 
         h, w = img.GetSize()
 
@@ -989,14 +992,14 @@ class MainWindow(wx.Frame):
                 print('Image not created')
                 return
 
-            # Create/add button in geom_panel
+            # Create/add button in slct_panel
             #
             # Includes rescaling to panel
             img_sc = self.ScaleImage(img)
             # 1/ Start with null image...
-            button = wx.BitmapToggleButton(self.geom_panel)
+            button = wx.BitmapToggleButton(self.slct_panel)
             button.SetBackgroundColour('white')
-            self.geom_sizer.Add(button, 1, wx.EXPAND)
+            self.slct_sizer.Add(button, 1, wx.EXPAND)
             # 2/ Add image after computing size
             button.SetBitmap(wx.Bitmap(self.ScaleImage(img_sc)))
 
@@ -1015,7 +1018,7 @@ class MainWindow(wx.Frame):
                 pass
 
         else:
-            # Remove button from geom_panel
+            # Remove button from slct_panel
             obj = self.button_dict[id_]
             obj.Destroy()
 
@@ -1025,7 +1028,7 @@ class MainWindow(wx.Frame):
             self.button_dict_inv.pop(obj)
             self.button_img_dict.pop(id_)
 
-        self.geom_panel.SetupScrolling(scrollToTop = False)
+        self.slct_panel.SetupScrolling(scrollToTop = False)
 
 
 
@@ -2024,16 +2027,16 @@ class MainWindow(wx.Frame):
 
     def AfterResize(self, event = None):
 
-        # Resize all images in geometry view
+        # Resize all images in selector view
         if self.file_open:
             # Get size of grid element
-            width_ = self.geom_panel.GetSize()[0]/self.image_cols
+            width_ = self.slct_panel.GetSize()[0]/self.image_cols
             for k, v in self.button_dict.items():
                 img    = self.button_img_dict[k]
                 img_sc = self.ScaleImage(img, width_)
                 v.SetBitmap(wx.Bitmap(self.ScaleImage(img_sc)))
 
-            self.geom_panel.SetupScrolling(scrollToTop = False)
+            self.slct_panel.SetupScrolling(scrollToTop = False)
 
 
 
