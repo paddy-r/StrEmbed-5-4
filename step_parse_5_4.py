@@ -27,8 +27,8 @@ from collections import OrderedDict as odict
 # Regular expression module
 import re
 
-# # Natural Language Toolkit module, for Levenshtein distance
-# import nltk
+# Natural Language Toolkit module, for Levenshtein distance
+import nltk
 
 import numpy as np
 from scipy.special import comb
