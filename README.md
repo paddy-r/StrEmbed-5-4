@@ -1,5 +1,3 @@
-# StrEmbed-5-4
-
 ## Quick start guide for running standalone executable
 
 Go to the latest release *via* the "Releases" tab, then:
@@ -10,8 +8,9 @@ Go to the latest release *via* the "Releases" tab, then:
 
 ___
 
+# StrEmbed-5-4
 
-## Version 5-4 of Structure Embedding
+Version 5-4 of Structure Embedding
 
 Part of the Design Configuration Spaces (DCS) project hosted by the University of Leeds
 
