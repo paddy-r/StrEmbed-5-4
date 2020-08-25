@@ -1,8 +1,6 @@
 # StrEmbed-5-4
-___
 
 ## Quick start guide for running standalone executable
-___
 
 Go to the latest release *via* the "Releases" tab, then:
 
