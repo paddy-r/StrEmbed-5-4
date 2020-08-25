@@ -11,7 +11,7 @@ Go to the latest release *via* the "Releases" tab, then:
 ___
 
 
-Version 5-4 of Structure Embedding
+##Version 5-4 of Structure Embedding
 
 Part of the Design Configuration Spaces (DCS) project hosted by the University of Leeds
 
