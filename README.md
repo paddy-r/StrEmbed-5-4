@@ -1,4 +1,17 @@
 # StrEmbed-5-4
+___
+
+## Quick start guide for running standalone executable
+___
+
+Go to the latest release *via* the "Releases" tab, then:
+
+1. Download the source code file bundle (```.zip``` or ```.tar.gz``` format) and extract/unpack the "Images" folder.
+2. Download one of the executables (```.exe```) and save to the same folder as the "Images" folder.
+3. Double-click the ```.exe``` file and ```StrEmbed-5-4``` will run.
+
+___
+
 
 Version 5-4 of Structure Embedding
 
